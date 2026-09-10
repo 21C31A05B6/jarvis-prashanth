@@ -123,6 +123,43 @@ def _find_windows_app_path(app_name: str) -> str | None:
     return None
 
 
+def _launch_windows_start_menu_app(app_name: str) -> bool:
+    """Launch Microsoft Store apps whose executable is not exposed in PATH."""
+    if _SYSTEM != "Windows":
+        return False
+    try:
+        result = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                (
+                    "$app = Get-StartApps -Name "
+                    f"'{app_name.replace(chr(39), chr(39) * 2)}' | "
+                    "Select-Object -First 1; "
+                    "if ($app) { $app.AppID }"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+        app_id = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
+        if not app_id:
+            return False
+        subprocess.Popen(
+            ["explorer.exe", f"shell:AppsFolder\\{app_id}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"[open_app] Start menu app launch failed: {exc}")
+        return False
+
+
 def _is_app_running(names: list[str]) -> bool:
     if not _PSUTIL:
         return True
@@ -142,6 +179,11 @@ def _is_app_running(names: list[str]) -> bool:
 
 
 def _launch_windows(app_name: str) -> bool:
+    # Store apps such as WhatsApp are commonly not available as executables.
+    if app_name.casefold() in {"whatsapp", "telegram", "discord", "slack"}:
+        if _launch_windows_start_menu_app(app_name):
+            return True
+
     # 0. Windows registry App Paths
     app_path = _find_windows_app_path(app_name)
     if app_path:

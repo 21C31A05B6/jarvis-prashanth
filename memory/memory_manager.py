@@ -1,4 +1,6 @@
 import json
+import os
+import tempfile
 from datetime import datetime
 from threading import Lock
 from pathlib import Path
@@ -66,7 +68,9 @@ def load_memory() -> dict:
             "fall back to the local memory file to avoid cross-tenant data leaks."
         )
     if not MEMORY_PATH.exists():
-        return _empty_memory()
+        memory = _empty_memory()
+        save_memory(memory)
+        return memory
     with _lock:
         try:
             data = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
@@ -123,10 +127,23 @@ def save_memory(memory: dict) -> None:
         )
     MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
     with _lock:
-        MEMORY_PATH.write_text(
-            json.dumps(memory, indent=2, ensure_ascii=False),
+        payload = json.dumps(memory, indent=2, ensure_ascii=False)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
             encoding="utf-8",
-        )
+            dir=MEMORY_PATH.parent,
+            prefix=f".{MEMORY_PATH.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary.write(payload)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_path = Path(temporary.name)
+        try:
+            os.replace(temporary_path, MEMORY_PATH)
+        finally:
+            temporary_path.unlink(missing_ok=True)
 
 
 def _truncate_value(val: str) -> str:

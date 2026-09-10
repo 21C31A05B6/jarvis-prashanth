@@ -75,6 +75,10 @@ class TaskQueue:
             self._executor = AgentExecutor(awareness=self._awareness)
         return self._executor
 
+    @staticmethod
+    def _persists_history(task: Task) -> bool:
+        return task.kind != "research"
+
     def start(self) -> None:
         if self._running:
             return
@@ -128,10 +132,11 @@ class TaskQueue:
                 start_now = True
             self._condition.notify()
 
-        try:
-            record_task(task_id=task_id, goal=goal, status="pending")
-        except Exception:
-            pass
+        if self._persists_history(task):
+            try:
+                record_task(task_id=task_id, goal=goal, status="pending")
+            except Exception:
+                pass
 
         if start_now:
             threading.Thread(
@@ -176,10 +181,11 @@ class TaskQueue:
             self._queue.sort(key=lambda item: (item.priority, item.created_at))
             self._tasks[task_id] = task
             self._condition.notify()
-        try:
-            record_task(task_id=task_id, goal=goal, status="pending")
-        except Exception:
-            pass
+        if self._persists_history(task):
+            try:
+                record_task(task_id=task_id, goal=goal, status="pending")
+            except Exception:
+                pass
         print(f"[TaskQueue] 📥 {kind} job queued: [{task_id}] {goal[:60]}")
         return task_id
 
@@ -292,10 +298,11 @@ class TaskQueue:
 
     def _run_task_inner(self, task: Task) -> None:
         print(f"[TaskQueue] ▶️ Running: [{task.task_id}] {task.goal[:60]}")
-        try:
-            record_task(task_id=task.task_id, goal=task.goal, status="running")
-        except Exception:
-            pass
+        if self._persists_history(task):
+            try:
+                record_task(task_id=task.task_id, goal=task.goal, status="running")
+            except Exception:
+                pass
         try:
             def update_progress(
                 percent: int | None = None,

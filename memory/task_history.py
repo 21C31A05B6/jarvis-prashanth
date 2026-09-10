@@ -1,11 +1,15 @@
 import json
+import os
 import re
+import tempfile
 import time
+from threading import RLock
 from pathlib import Path
 from typing import Any
 
 HISTORY_PATH = Path(__file__).resolve().parent / "task_history.json"
 MAX_HISTORY = 100
+_lock = RLock()
 
 
 def _load() -> list[dict]:
@@ -13,18 +17,32 @@ def _load() -> list[dict]:
         if HISTORY_PATH.exists():
             data = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
             if isinstance(data, list):
-                return data
-    except Exception:
-        pass
+                return [item for item in data if isinstance(item, dict)]
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[TaskHistory] Load failed: {exc}")
     return []
 
 
 def _save(items: list[dict]) -> None:
     HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    HISTORY_PATH.write_text(
-        json.dumps(items[-MAX_HISTORY:], indent=2, ensure_ascii=False),
-        encoding="utf-8"
-    )
+    payload = json.dumps(items[-MAX_HISTORY:], indent=2, ensure_ascii=False)
+    with _lock:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=HISTORY_PATH.parent,
+            prefix=f".{HISTORY_PATH.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary.write(payload)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_path = Path(temporary.name)
+        try:
+            os.replace(temporary_path, HISTORY_PATH)
+        finally:
+            temporary_path.unlink(missing_ok=True)
 
 
 def _extract_saved_file(result: Any) -> str:
@@ -79,16 +97,17 @@ def record_task(
             "write local task history to avoid cross-tenant data leaks."
         )
 
-    items = _load()
-    updated = False
-    for i, item in enumerate(items):
-        if item.get("task_id") == task_id:
-            items[i] = entry
-            updated = True
-            break
-    if not updated:
+    with _lock:
+        items = _load()
+        existing_index = None
+        for i, item in enumerate(items):
+            if item.get("task_id") == task_id:
+                existing_index = i
+                break
+        if existing_index is not None:
+            items.pop(existing_index)
         items.append(entry)
-    _save(items)
+        _save(items)
     return entry
 
 
