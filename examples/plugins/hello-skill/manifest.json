@@ -1,0 +1,36 @@
+{
+  "name": "hello-skill",
+  "title": "Hello Skill",
+  "version": "1.0.0",
+  "description": "A simple greeting plugin that demonstrates the JARVIS plugin system.",
+  "author": "JARVIS Team",
+  "license": "MIT",
+  "homepage": "https://jarvis-os.example.com",
+  "plugin_uri": "hello-skill",
+  "entry_point": "__init__.py",
+  "actions": [
+    {
+      "name": "greet",
+      "description": "Greet the user with a personalized message.",
+      "permissions": ["safe"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the person to greet."
+          }
+        }
+      }
+    },
+    {
+      "name": "farewell",
+      "description": "Say goodbye to the user.",
+      "permissions": ["safe"],
+      "parameters": {}
+    }
+  ],
+  "min_jarvis_version": "2.0.0",
+  "permissions": ["safe"],
+  "tags": ["greeting", "demo"]
+}

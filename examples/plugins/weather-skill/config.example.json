@@ -1,0 +1,6 @@
+{
+  "api_key": "your-openweathermap-api-key-here",
+  "units": "metric",
+  "default_location": "San Francisco",
+  "cache_minutes": 30
+}

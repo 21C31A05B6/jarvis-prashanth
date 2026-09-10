@@ -1,0 +1,63 @@
+beautifulsoup4>=4.15,<5
+# Windows-only dependencies (guarded by environment markers)
+comtypes>=1.4,<2; platform_system=="Windows"
+pycaw>=20230407,<20260101; platform_system=="Windows"
+pywinauto>=0.6,<0.7; platform_system=="Windows"
+# Cross-platform deps
+# cryptography 50 currently has no macOS x86_64/Python 3.14 wheel and attempts
+# a local OpenSSL build. Keep using the compatible binary-wheel release.
+cryptography==48.0.0; platform_system=="Darwin" and platform_machine=="x86_64" and python_version>="3.14"
+cryptography>=44,<51; platform_system!="Darwin"
+duckduckgo-search>=8.0,<9
+# Only google-genai is used across this codebase (see core/genai_compat.py).
+# google-generativeai (the older, deprecated SDK) has been fully removed to
+# avoid maintaining two Gemini SDK generations side by side.
+google-genai>=2.20,<3
+google-api-python-client>=2.199,<3
+google-auth-httplib2>=0.4,<1
+google-auth-oauthlib>=1.4,<2
+mss>=10.0,<11
+numpy>=2.5,<3
+opencv-python>=4.10,<5
+playwright>=1.62,<2
+Pillow>=12.0,<13
+pandas>=2.2,<3
+psutil>=7.0,<8
+pyautogui>=0.9,<1
+pygetwindow>=0.0.9,<0.1
+pyperclip>=1.9,<2
+pyqt6>=6.11,<7
+python-docx>=1.2,<2
+openpyxl>=3.1,<4
+python-pptx>=1.0,<2
+PyMuPDF>=1.28,<2
+requests>=2.32,<3
+send2trash>=2.1,<3
+sounddevice>=0.5,<1
+youtube-transcript-api>=1.2,<2
+fastapi>=0.141,<1
+uvicorn[standard]>=0.52,<1
+xlrd>=2.0,<3
+keyring>=25.7,<26
+python-dotenv>=1.0,<2
+pydantic>=2.13,<3
+pyotp>=2.9,<3
+SQLAlchemy>=2.0,<3
+alembic>=1.13,<2
+psycopg[binary]>=3.2,<4
+redis>=5,<7
+email-validator>=2.2,<3
+# External TTS providers
+elevenlabs>=2.0,<3
+openai>=2.0,<4
+soundfile>=0.13,<1
+# Integrations: Amazon S3 (cloud_storage) and Microsoft Teams Graph sign-in (teams_control).
+# GitHub, Slack, Discord, WhatsApp, and Dropbox use plain REST calls via `requests` above,
+# and Google Calendar/Drive reuse the google-api-python-client / google-auth-oauthlib deps
+# already listed for Gmail, so no extra packages are needed for those.
+boto3>=1.34,<2
+msal>=1.28,<2
+# Cross-platform support: Desktop apps, web, mobile, sync, platform detection
+aiohttp>=3.8,<4
+aiofiles>=22.0,<23
+

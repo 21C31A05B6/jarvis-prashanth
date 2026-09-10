@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: jarvis_test
+          POSTGRES_USER: jarvis
+          POSTGRES_PASSWORD: jarvis
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U jarvis"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://jarvis:jarvis@localhost:5432/jarvis_test
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-jwt-secret-with-sufficient-length
+      JARVIS_ENCRYPTION_KEY: ci-encryption-secret-with-sufficient-length
+      JARVIS_ENV: test
+      AUTO_CREATE_TABLES: "0"
+      REDIS_REQUIRED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - name: Install system audio/Qt libs
+        # Lets the full suite (including desktop audio + PyQt6 GUI tests)
+        # run for real instead of skipping; the test suite itself no longer
+        # requires these (see conftest.py / tests/test_ui_*.py), so CI
+        # without this step still passes, just with fewer tests exercised.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libportaudio2 portaudio19-dev libgl1 libglib2.0-0 \
+            libxkbcommon0 libxkbcommon-x11-0 libegl1 libdbus-1-3 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0
+      - run: pip install -r requirements.txt
+      - run: pip install pytest
+      - run: alembic upgrade head
+      - run: python -m pytest tests/ -v --durations=10
+
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: web }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build

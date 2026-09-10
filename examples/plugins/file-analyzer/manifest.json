@@ -1,0 +1,68 @@
+{
+  "name": "file-analyzer",
+  "title": "File Analyzer",
+  "version": "2.1.0",
+  "description": "Analyze files, count lines of code, detect file types, and generate file statistics.",
+  "author": "JARVIS Team",
+  "license": "MIT",
+  "plugin_uri": "file-analyzer",
+  "entry_point": "__init__.py",
+  "actions": [
+    {
+      "name": "analyze_file",
+      "description": "Analyze a file and return statistics (lines, type, size, encoding).",
+      "permissions": ["local_read"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to the file to analyze."
+          }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "count_lines",
+      "description": "Count lines of code in source files.",
+      "permissions": ["local_read"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "directory": {
+            "type": "string",
+            "description": "Directory to scan recursively."
+          },
+          "extensions": {
+            "type": "string",
+            "description": "Comma-separated file extensions to include (e.g., py,js,java)."
+          }
+        },
+        "required": ["directory"]
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Generate a detailed file analysis report and save it.",
+      "permissions": ["local_read", "local_write"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "directory": {
+            "type": "string",
+            "description": "Directory to analyze."
+          },
+          "output_path": {
+            "type": "string",
+            "description": "Path to save the report (JSON or CSV)."
+          }
+        },
+        "required": ["directory", "output_path"]
+      }
+    }
+  ],
+  "min_jarvis_version": "2.0.0",
+  "permissions": ["local_read", "local_write"],
+  "tags": ["file-analysis", "code-metrics"]
+}

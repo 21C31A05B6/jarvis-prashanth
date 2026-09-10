@@ -1,0 +1,79 @@
+{
+  "name": "weather-skill",
+  "title": "Weather Skill",
+  "version": "1.2.0",
+  "description": "Fetch and display weather information using a configured API.",
+  "author": "JARVIS Team",
+  "license": "MIT",
+  "repository": "https://github.com/jarvis/weather-skill",
+  "plugin_uri": "weather-skill",
+  "entry_point": "__init__.py",
+  "actions": [
+    {
+      "name": "get_weather",
+      "description": "Fetch current weather for a location.",
+      "permissions": ["network"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "City name or coordinates (lat,lon)."
+          },
+          "units": {
+            "type": "string",
+            "enum": ["metric", "imperial"],
+            "description": "Temperature units. Defaults to config value."
+          }
+        },
+        "required": ["location"]
+      }
+    },
+    {
+      "name": "set_default_location",
+      "description": "Set your default weather location.",
+      "permissions": ["safe"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "City name or coordinates."
+          }
+        },
+        "required": ["location"]
+      }
+    }
+  ],
+  "dependencies": {
+    "requests": ">=2.25"
+  },
+  "min_jarvis_version": "2.0.0",
+  "permissions": ["network"],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "api_key": {
+        "type": "string",
+        "description": "OpenWeatherMap API key"
+      },
+      "units": {
+        "type": "string",
+        "enum": ["metric", "imperial"],
+        "description": "Default temperature units"
+      },
+      "default_location": {
+        "type": "string",
+        "description": "Default city for weather queries"
+      },
+      "cache_minutes": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1440,
+        "description": "Cache weather results for this many minutes"
+      }
+    },
+    "required": ["api_key"]
+  },
+  "tags": ["weather", "external-api"]
+}

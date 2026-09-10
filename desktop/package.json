@@ -1,0 +1,108 @@
+{
+  "name": "jarvis-desktop",
+  "version": "2.1.0",
+  "description": "JARVIS Desktop Application - Intelligent OS Assistant",
+  "main": "desktop/main.js",
+  "homepage": ".",
+  "author": "JARVIS Team",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "react-start": "react-scripts start",
+    "react-build": "react-scripts build",
+    "electron-dev": "concurrently \"npm run react-start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-build": "npm run react-build && electron-builder",
+    "build": "npm run react-build && npm run electron-build",
+    "build-win": "npm run react-build && electron-builder --win",
+    "build-mac": "npm run react-build && electron-builder --mac",
+    "build-linux": "npm run react-build && electron-builder --linux",
+    "build-all": "npm run react-build && electron-builder --win --mac --linux",
+    "start": "npm run electron-dev",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "homepage": "./",
+  "dependencies": {
+    "electron-is-dev": "^1.2.0",
+    "electron-store": "^8.0.0",
+    "electron-updater": "^5.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.0.0",
+    "axios": "^0.27.0",
+    "ws": "^8.8.0"
+  },
+  "devDependencies": {
+    "electron": "^latest",
+    "electron-builder": "^24.0.0",
+    "concurrently": "^7.0.0",
+    "wait-on": "^6.0.0",
+    "react-scripts": "5.0.1"
+  },
+  "build": {
+    "appId": "com.jarvis.desktop",
+    "productName": "JARVIS",
+    "directories": {
+      "buildResources": "assets"
+    },
+    "files": [
+      "build/**/*",
+      "desktop/main.js",
+      "desktop/preload.js",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "certificateFile": null,
+      "certificatePassword": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "JARVIS"
+    },
+    "portable": {
+      "artifactName": "JARVIS-Setup-${version}.exe"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "desktop/entitlements.mac.plist",
+      "entitlementsInherit": "desktop/entitlements.mac.plist"
+    },
+    "dmg": {
+      "sign": false
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "appImage": {
+      "artifactName": "JARVIS-${version}.AppImage"
+    },
+    "deb": {
+      "depends": [
+        "gconf2",
+        "gconf-service",
+        "libnotify4",
+        "libappindicator1",
+        "libindicator7",
+        "xdg-utils"
+      ]
+    }
+  }
+}
