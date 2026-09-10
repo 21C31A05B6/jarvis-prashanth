@@ -9,6 +9,17 @@ import time
 import unicodedata
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from actions.safe_text_entry import safe_type_then_enter
 from actions.instagram_browser import (
     prepare_instagram_draft as _controlled_instagram_prepare_draft,

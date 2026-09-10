@@ -1,6 +1,19 @@
+import sys
 import threading
 import time
 import uuid
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable, Any

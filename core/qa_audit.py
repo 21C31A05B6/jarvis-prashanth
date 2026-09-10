@@ -16,7 +16,8 @@ EXPECTED_TOOLS = {
     "desktop_control", "code_helper", "dev_agent", "agent_task",
     "computer_control", "game_updater", "flight_finder", "jarvis_ui_control",
     "file_processor", "create_presentation", "deep_research", "graphics_quality", "task_status", "save_memory",
-    "workflow_control",
+    "workflow_control", "calendar_control", "github_control", "slack_control", "teams_control",
+    "whatsapp_control", "drive_control", "skill_manager", "cloud_storage", "external_ai", "discord_control",
 }
 
 

@@ -34,18 +34,24 @@ def _run_tests(*names: str) -> tuple[bool, str]:
         **os.environ,
         "JARVIS_QA_MODE": "1",
         "QT_QPA_PLATFORM": "offscreen",
+        "PYTHONUTF8": "1",
+        "PYTHONIOENCODING": "utf-8",
     }
     result = subprocess.run(
         [sys.executable, "-m", "unittest", "-q", *names],
         cwd=ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=180,
         check=False,
         env=environment,
     )
+    stdout_str = result.stdout or ""
+    stderr_str = result.stderr or ""
     output = "\n".join(
-        part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        part.strip() for part in (stdout_str, stderr_str) if part.strip()
     )
     return result.returncode == 0, output[-1200:]
 

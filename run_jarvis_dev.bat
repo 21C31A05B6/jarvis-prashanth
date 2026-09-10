@@ -1,12 +1,23 @@
 @echo off
+setlocal
 :: ============================================================
 :: JARVIS Developer Quick-Launch
-:: Skips the clap gate for instant startup.
-:: Keys are loaded from .env (copy .env.example to .env first)
+:: Automatically detects venv, loads .env, skips clap gate.
 :: ============================================================
 set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 set JARVIS_CLI=1
 set JARVIS_SKIP_CLAP_GATE=1
+
+cd /d "%~dp0"
+
+:: Detect python in venv, .venv, or system PATH
+set "PY_CMD=python"
+if exist "venv\Scripts\python.exe" (
+  set "PY_CMD=venv\Scripts\python.exe"
+) else if exist ".venv\Scripts\python.exe" (
+  set "PY_CMD=.venv\Scripts\python.exe"
+)
 
 :: Load .env if it exists
 if exist ".env" (
@@ -15,5 +26,6 @@ if exist ".env" (
   )
 )
 
-python main.py
+echo [JARVIS] Starting JARVIS Dev Mode using %PY_CMD%...
+"%PY_CMD%" main.py
 pause

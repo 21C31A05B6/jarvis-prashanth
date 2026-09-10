@@ -163,7 +163,7 @@ def classify_error(exc: Exception | str) -> ErrorCategory:
     if "app not found" in text or "is not installed" in text or "executable not found" in text:
         return ErrorCategory.APP_NOT_FOUND
 
-    if "connection refused" in text or "network is unreachable" in text or "dns" in text or "socket" in text:
+    if isinstance(exc, ConnectionError) or "network" in text or "connection" in text or "dns" in text or "socket" in text:
         return ErrorCategory.NETWORK_FAILURE
 
     if "temporary" in text or "busy" in text or "locked" in text or "resource temporarily unavailable" in text:

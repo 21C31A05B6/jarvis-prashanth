@@ -398,16 +398,16 @@ export function JarvisConsole({
         {/* ─────────────────────────────────────────────────────────────
             MAIN DASHBOARD CONTENT (HUD CARDS GRID)
         ────────────────────────────────────────────────────────────── */}
-        <main className="flex-1 p-3.5 overflow-y-auto space-y-3.5 custom-scrollbar">
+        <main className="flex-1 p-2.5 overflow-y-auto xl:overflow-hidden space-y-2.5 custom-scrollbar">
           {/* ── TOP ROW: AI Core Overview | 3D Holographic Globe | Live Intelligence Feed ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
             {/* Top Left: AI CORE OVERVIEW */}
-            <section className="lg:col-span-3 hud-card p-3.5 flex flex-col justify-between">
-              <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono mb-3">
+            <section className="lg:col-span-3 hud-card p-2.5 flex flex-col justify-between">
+              <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono mb-2">
                 AI CORE OVERVIEW
               </h2>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {[
                   { title: "AI Core", sub: "Active", icon: Cpu, color: "text-cyan-400", bg: "bg-cyan-950 border-cyan-500/40" },
                   { title: "Memory", sub: "3,380 Stored", icon: Database, color: "text-blue-400", bg: "bg-blue-950 border-blue-500/40" },
@@ -418,13 +418,13 @@ export function JarvisConsole({
                 ].map((item, i) => {
                   const Icon = item.icon;
                   return (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className={`w-7 h-7 rounded-full border flex items-center justify-center ${item.bg}`}>
-                        <Icon size={14} className={item.color} />
+                    <div key={i} className="flex items-center gap-2.5">
+                      <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${item.bg}`}>
+                        <Icon size={13} className={item.color} />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-xs font-bold text-cyan-100 font-mono leading-none">{item.title}</span>
-                        <span className={`text-[11px] font-mono leading-none mt-1 ${item.color}`}>{item.sub}</span>
+                        <span className={`text-[10px] font-mono leading-none mt-0.5 ${item.color}`}>{item.sub}</span>
                       </div>
                     </div>
                   );
@@ -433,12 +433,12 @@ export function JarvisConsole({
             </section>
 
             {/* Center Hero: 3D Holographic AI Core Sphere */}
-            <section className="lg:col-span-6 hud-card p-2 relative flex flex-col items-center justify-center min-h-[240px]">
-              <HologramSphere width={450} height={230} />
+            <section className="lg:col-span-6 hud-card p-1.5 relative flex flex-col items-center justify-center min-h-[210px]">
+              <HologramSphere width={420} height={205} />
             </section>
 
             {/* Top Right: LIVE INTELLIGENCE FEED */}
-            <section className="lg:col-span-3 hud-card p-3.5 flex flex-col justify-between">
+            <section className="lg:col-span-3 hud-card p-2.5 flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono">
                   LIVE INTELLIGENCE FEED
@@ -517,10 +517,10 @@ export function JarvisConsole({
           </div>
 
           {/* ── MIDDLE ROW: Active Agents | Mission Timeline | Quick Commands ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
             {/* Middle Left: ACTIVE AGENTS (3x2 Grid) */}
-            <section className="lg:col-span-5 hud-card p-3.5 flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2.5">
+            <section className="lg:col-span-5 hud-card p-2.5 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono">
                   ACTIVE AGENTS
                 </h2>
@@ -532,12 +532,12 @@ export function JarvisConsole({
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 gap-2">
                 {/* Agent 1: Coding Agent (Active, Green) */}
-                <div className="p-2.5 rounded-lg border border-emerald-500/30 bg-[#031526]/80 flex flex-col justify-between">
+                <div className="p-2 rounded-lg border border-emerald-500/30 bg-[#031526]/80 flex flex-col justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded border border-emerald-500/40 bg-emerald-950/60 text-emerald-400">
-                      <Code2 size={13} />
+                    <div className="p-1 rounded border border-emerald-500/40 bg-emerald-950/60 text-emerald-400">
+                      <Code2 size={12} />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-cyan-100 font-mono">Coding Agent</div>
@@ -548,7 +548,7 @@ export function JarvisConsole({
                     </div>
                   </div>
                   {/* Waveform */}
-                  <div className="flex items-center gap-0.5 h-3 mt-2">
+                  <div className="flex items-center gap-0.5 h-3 mt-1.5">
                     {[6, 12, 8, 14, 10, 15, 7, 13, 9].map((h, idx) => (
                       <div
                         key={idx}
@@ -560,10 +560,10 @@ export function JarvisConsole({
                 </div>
 
                 {/* Agent 2: Research Agent (Active, Cyan) */}
-                <div className="p-2.5 rounded-lg border border-cyan-500/30 bg-[#031526]/80 flex flex-col justify-between">
+                <div className="p-2 rounded-lg border border-cyan-500/30 bg-[#031526]/80 flex flex-col justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded border border-cyan-500/40 bg-cyan-950/60 text-cyan-400">
-                      <Search size={13} />
+                    <div className="p-1 rounded border border-cyan-500/40 bg-cyan-950/60 text-cyan-400">
+                      <Search size={12} />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-cyan-100 font-mono">Research Agent</div>
@@ -574,7 +574,7 @@ export function JarvisConsole({
                     </div>
                   </div>
                   {/* Waveform */}
-                  <div className="flex items-center gap-0.5 h-3 mt-2">
+                  <div className="flex items-center gap-0.5 h-3 mt-1.5">
                     {[8, 14, 11, 16, 9, 13, 7, 15, 10].map((h, idx) => (
                       <div
                         key={idx}
@@ -586,10 +586,10 @@ export function JarvisConsole({
                 </div>
 
                 {/* Agent 3: Memory Agent (Standby, Purple) */}
-                <div className="p-2.5 rounded-lg border border-purple-500/25 bg-[#031322]/80 flex flex-col justify-between">
+                <div className="p-2 rounded-lg border border-purple-500/25 bg-[#031322]/80 flex flex-col justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded border border-purple-500/40 bg-purple-950/60 text-purple-400">
-                      <Database size={13} />
+                    <div className="p-1 rounded border border-purple-500/40 bg-purple-950/60 text-purple-400">
+                      <Database size={12} />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-cyan-100 font-mono">Memory Agent</div>
@@ -600,7 +600,7 @@ export function JarvisConsole({
                     </div>
                   </div>
                   {/* Waveform */}
-                  <div className="flex items-center gap-0.5 h-3 mt-2">
+                  <div className="flex items-center gap-0.5 h-3 mt-1.5">
                     {[4, 7, 5, 8, 6, 7, 4, 6, 5].map((h, idx) => (
                       <div
                         key={idx}
@@ -612,10 +612,10 @@ export function JarvisConsole({
                 </div>
 
                 {/* Agent 4: Browser Agent (Standby, Yellow) */}
-                <div className="p-2.5 rounded-lg border border-amber-500/25 bg-[#031322]/80 flex flex-col justify-between">
+                <div className="p-2 rounded-lg border border-amber-500/25 bg-[#031322]/80 flex flex-col justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded border border-amber-500/40 bg-amber-950/60 text-amber-400">
-                      <Globe size={13} />
+                    <div className="p-1 rounded border border-amber-500/40 bg-amber-950/60 text-amber-400">
+                      <Globe size={12} />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-cyan-100 font-mono">Browser Agent</div>
@@ -626,7 +626,7 @@ export function JarvisConsole({
                     </div>
                   </div>
                   {/* Waveform */}
-                  <div className="flex items-center gap-0.5 h-3 mt-2">
+                  <div className="flex items-center gap-0.5 h-3 mt-1.5">
                     {[5, 9, 6, 10, 7, 8, 5, 9, 6].map((h, idx) => (
                       <div
                         key={idx}
@@ -638,10 +638,10 @@ export function JarvisConsole({
                 </div>
 
                 {/* Agent 5: Task Agent (Standby, Blue with Trajectory Dots) */}
-                <div className="p-2.5 rounded-lg border border-blue-500/25 bg-[#031322]/80 flex flex-col justify-between">
+                <div className="p-2 rounded-lg border border-blue-500/25 bg-[#031322]/80 flex flex-col justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded border border-blue-500/40 bg-blue-950/60 text-blue-400">
-                      <CheckSquare size={13} />
+                    <div className="p-1 rounded border border-blue-500/40 bg-blue-950/60 text-blue-400">
+                      <CheckSquare size={12} />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-cyan-100 font-mono">Task Agent</div>
@@ -652,7 +652,7 @@ export function JarvisConsole({
                     </div>
                   </div>
                   {/* Trajectory dots */}
-                  <div className="flex items-center gap-1 h-3 mt-2">
+                  <div className="flex items-center gap-1 h-3 mt-1.5">
                     {[1, 2, 3, 4, 5, 6, 7].map((_, idx) => (
                       <div
                         key={idx}
@@ -664,10 +664,10 @@ export function JarvisConsole({
                 </div>
 
                 {/* Agent 6: System Agent (Standby, Green with Checkmark) */}
-                <div className="p-2.5 rounded-lg border border-emerald-500/25 bg-[#031322]/80 flex flex-col justify-between">
+                <div className="p-2 rounded-lg border border-emerald-500/25 bg-[#031322]/80 flex flex-col justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded border border-emerald-500/40 bg-emerald-950/60 text-emerald-400">
-                      <ShieldCheck size={13} />
+                    <div className="p-1 rounded border border-emerald-500/40 bg-emerald-950/60 text-emerald-400">
+                      <ShieldCheck size={12} />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-cyan-100 font-mono">System Agent</div>
@@ -677,26 +677,26 @@ export function JarvisConsole({
                       </div>
                     </div>
                   </div>
-                  {/* Green checkmark badge */}
-                  <div className="flex items-center justify-end h-3 mt-2">
-                    <Check size={14} className="text-emerald-400" />
+                  {/* Green checkmark */}
+                  <div className="flex items-center justify-end h-3 mt-1.5 pr-1">
+                    <Check size={14} className="text-emerald-400 font-bold" />
                   </div>
                 </div>
               </div>
             </section>
 
             {/* Middle Center: MISSION TIMELINE */}
-            <section className="lg:col-span-4 hud-card p-3.5 flex flex-col justify-between">
+            <section className="lg:col-span-4 hud-card p-2.5 flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono">
                   MISSION TIMELINE
                 </h2>
-                <span className="text-[10px] font-mono text-cyan-400/70 border border-cyan-500/20 px-2 py-0.5 rounded">
+                <span className="text-[10px] font-mono text-cyan-400/80 border border-cyan-500/25 px-2 py-0.5 rounded bg-[#03162a]">
                   Today ▾
                 </span>
               </div>
 
-              <div className="space-y-3 font-mono text-xs">
+              <div className="space-y-2.5 font-mono text-xs">
                 {/* Milestone 1 */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -738,7 +738,7 @@ export function JarvisConsole({
                 </div>
               </div>
 
-              <div className="pt-2 text-center">
+              <div className="pt-1.5 text-center">
                 <button
                   onClick={() => setShowCalendar(true)}
                   className="text-[10px] font-mono text-cyan-400/80 hover:text-cyan-200 transition"
@@ -749,7 +749,7 @@ export function JarvisConsole({
             </section>
 
             {/* Middle Right: QUICK COMMANDS */}
-            <section className="lg:col-span-3 hud-card p-3.5 flex flex-col justify-between">
+            <section className="lg:col-span-3 hud-card p-2.5 flex flex-col justify-between">
               <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono mb-2">
                 QUICK COMMANDS
               </h2>
@@ -757,7 +757,7 @@ export function JarvisConsole({
               <div className="space-y-2 font-mono">
                 <button
                   onClick={() => setShowNewTask(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border border-cyan-500/25 bg-[#041628]/90 text-cyan-200 text-xs hover:border-cyan-400 hover:bg-cyan-500/15 transition shadow-[0_0_10px_rgba(0,229,255,0.1)]"
+                  className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-cyan-500/25 bg-[#041628]/90 text-cyan-200 text-xs hover:border-cyan-400 hover:bg-cyan-500/15 transition shadow-[0_0_10px_rgba(0,229,255,0.1)]"
                 >
                   <Plus size={14} className="text-cyan-400" />
                   <span>Start New Task</span>
@@ -765,7 +765,7 @@ export function JarvisConsole({
 
                 <button
                   onClick={() => setShowCalendar(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border border-cyan-500/25 bg-[#041628]/90 text-cyan-200 text-xs hover:border-cyan-400 hover:bg-cyan-500/15 transition shadow-[0_0_10px_rgba(0,229,255,0.1)]"
+                  className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-cyan-500/25 bg-[#041628]/90 text-cyan-200 text-xs hover:border-cyan-400 hover:bg-cyan-500/15 transition shadow-[0_0_10px_rgba(0,229,255,0.1)]"
                 >
                   <Calendar size={14} className="text-cyan-400" />
                   <span>Open Calendar</span>
@@ -773,7 +773,7 @@ export function JarvisConsole({
 
                 <button
                   onClick={toggleVoice}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border border-cyan-500/25 bg-[#041628]/90 text-cyan-200 text-xs hover:border-cyan-400 hover:bg-cyan-500/15 transition shadow-[0_0_10px_rgba(0,229,255,0.1)]"
+                  className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-cyan-500/25 bg-[#041628]/90 text-cyan-200 text-xs hover:border-cyan-400 hover:bg-cyan-500/15 transition shadow-[0_0_10px_rgba(0,229,255,0.1)]"
                 >
                   <Mic size={14} className="text-cyan-400" />
                   <span>Start Voice Chat</span>
@@ -781,7 +781,7 @@ export function JarvisConsole({
 
                 <button
                   onClick={() => setShowPalette(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border border-cyan-500/25 bg-[#041628]/90 text-cyan-200 text-xs hover:border-cyan-400 hover:bg-cyan-500/15 transition shadow-[0_0_10px_rgba(0,229,255,0.1)]"
+                  className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-cyan-500/25 bg-[#041628]/90 text-cyan-200 text-xs hover:border-cyan-400 hover:bg-cyan-500/15 transition shadow-[0_0_10px_rgba(0,229,255,0.1)]"
                 >
                   <Play size={14} className="text-cyan-400" />
                   <span>Run Workflow</span>
@@ -791,26 +791,26 @@ export function JarvisConsole({
           </div>
 
           {/* ── BOTTOM ROW: System Monitor | Memory Insights | LLM Status ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 pb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 pb-16">
             {/* Bottom Left: SYSTEM MONITOR (3 Radial Gauges) */}
-            <section className="lg:col-span-3 hud-card p-3.5 flex flex-col justify-between">
-              <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono mb-2">
+            <section className="lg:col-span-3 hud-card p-2.5 flex flex-col justify-between">
+              <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono mb-1">
                 SYSTEM MONITOR
               </h2>
 
-              <div className="flex items-center justify-around py-2">
-                <RadialGauge label="CPU" value={metrics.cpu} size={78} />
-                <RadialGauge label="RAM" value={metrics.ram} size={78} />
-                <RadialGauge label="Disk" value={metrics.disk} size={78} />
+              <div className="flex items-center justify-around py-1">
+                <RadialGauge label="CPU" value={metrics.cpu} size={70} />
+                <RadialGauge label="RAM" value={metrics.ram} size={70} />
+                <RadialGauge label="Disk" value={metrics.disk} size={70} />
               </div>
 
-              <div className="text-[10px] font-mono text-center text-cyan-400/60 pt-1">
+              <div className="text-[10px] font-mono text-center text-cyan-400/60 pt-0.5">
                 Hardware nominal · 64 cores active
               </div>
             </section>
 
             {/* Bottom Center: MEMORY INSIGHTS (Constellation + Stats) */}
-            <section className="lg:col-span-4 hud-card p-3.5 flex flex-col justify-between">
+            <section className="lg:col-span-4 hud-card p-2.5 flex flex-col justify-between">
               <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono mb-1">
                 MEMORY INSIGHTS
               </h2>
@@ -818,27 +818,27 @@ export function JarvisConsole({
               <div className="flex items-center justify-between gap-2">
                 {/* Neural Constellation Canvas */}
                 <div className="flex-1 flex items-center justify-center">
-                  <MemoryConstellation width={180} height={85} />
+                  <MemoryConstellation width={170} height={78} />
                 </div>
 
                 {/* Stats */}
                 <div className="flex flex-col space-y-1 font-mono text-right pr-2">
                   <div>
-                    <span className="text-[10px] text-cyan-400/70 block">Memories</span>
-                    <span className="text-sm font-bold text-cyan-200">3,380</span>
+                    <span className="text-[10px] text-cyan-400/70 block leading-tight">Memories</span>
+                    <span className="text-xs font-bold text-cyan-200 leading-none">3,380</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-cyan-400/70 block">Session Turns</span>
-                    <span className="text-sm font-bold text-cyan-200">22</span>
+                    <span className="text-[10px] text-cyan-400/70 block leading-tight">Session Turns</span>
+                    <span className="text-xs font-bold text-cyan-200 leading-none">22</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-cyan-400/70 block">Tool Calls</span>
-                    <span className="text-sm font-bold text-cyan-200">14</span>
+                    <span className="text-[10px] text-cyan-400/70 block leading-tight">Tool Calls</span>
+                    <span className="text-xs font-bold text-cyan-200 leading-none">14</span>
                   </div>
                 </div>
               </div>
 
-              <div className="text-center pt-1">
+              <div className="text-center pt-0.5">
                 <button
                   onClick={() => setShowIntelligence(true)}
                   className="text-[10px] font-mono text-cyan-400/80 hover:text-cyan-200 transition"
@@ -848,9 +848,9 @@ export function JarvisConsole({
               </div>
             </section>
 
-            {/* Bottom Right: LLM STATUS (9 Provider Pills) */}
-            <section className="lg:col-span-5 hud-card p-3.5 flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
+            {/* Bottom Right: LLM STATUS (9 Provider Pills matching screenshot) */}
+            <section className="lg:col-span-5 hud-card p-2.5 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1.5">
                 <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono">
                   LLM STATUS
                 </h2>
@@ -860,52 +860,67 @@ export function JarvisConsole({
               </div>
 
               {/* 3x3 Provider Grid */}
-              <div className="grid grid-cols-3 gap-2 font-mono text-[11px]">
+              <div className="grid grid-cols-3 gap-1.5 font-mono text-[11px]">
                 {/* 1. Claude */}
-                <div className="p-2 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between">
-                  <span className="text-cyan-200 font-semibold">Claude</span>
+                <div
+                  onClick={() => setShowProviders(true)}
+                  className="p-1.5 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between cursor-pointer hover:border-cyan-400/40"
+                >
+                  <span className="text-cyan-200 font-semibold text-[11px]">Claude</span>
                   <span className="text-[9px] text-cyan-400/50">Not Linked</span>
                 </div>
 
                 {/* 2. OpenAI */}
-                <div className="p-2 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between">
-                  <span className="text-cyan-200 font-semibold">OpenAI</span>
+                <div
+                  onClick={() => setShowProviders(true)}
+                  className="p-1.5 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between cursor-pointer hover:border-cyan-400/40"
+                >
+                  <span className="text-cyan-200 font-semibold text-[11px]">OpenAI</span>
                   <span className="text-[9px] text-cyan-400/50">Not Linked</span>
                 </div>
 
                 {/* 3. Gemini */}
-                <div className="p-2 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between">
-                  <span className="text-cyan-200 font-semibold">Gemini</span>
+                <div
+                  onClick={() => setShowProviders(true)}
+                  className="p-1.5 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between cursor-pointer hover:border-cyan-400/40"
+                >
+                  <span className="text-cyan-200 font-semibold text-[11px]">Gemini</span>
                   <span className="text-[9px] text-cyan-400/50">Not Linked</span>
                 </div>
 
-                {/* 4. Groq (Connected, Amber) */}
-                <div className="p-2 rounded border border-amber-500/30 bg-amber-950/20 flex flex-col justify-between shadow-[0_0_8px_rgba(245,158,11,0.15)]">
-                  <span className="text-amber-200 font-semibold">Groq</span>
-                  <span className="text-[9px] text-amber-400 flex items-center gap-1">
-                    <span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
-                    Connected
-                  </span>
+                {/* 4. Groq (Not Linked) */}
+                <div
+                  onClick={() => setShowProviders(true)}
+                  className="p-1.5 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between cursor-pointer hover:border-cyan-400/40"
+                >
+                  <span className="text-cyan-200 font-semibold text-[11px]">Groq</span>
+                  <span className="text-[9px] text-cyan-400/50">Not Linked</span>
                 </div>
 
-                {/* 5. OpenRouter (Connected, Cyan) */}
-                <div className="p-2 rounded border border-cyan-500/30 bg-cyan-950/20 flex flex-col justify-between shadow-[0_0_8px_rgba(0,229,255,0.15)]">
-                  <span className="text-cyan-200 font-semibold">OpenRouter</span>
-                  <span className="text-[9px] text-cyan-400 flex items-center gap-1">
-                    <span className="w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_4px_#00e5ff]" />
-                    Connected
-                  </span>
+                {/* 5. OpenRouter (Not Linked) */}
+                <div
+                  onClick={() => setShowProviders(true)}
+                  className="p-1.5 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between cursor-pointer hover:border-cyan-400/40"
+                >
+                  <span className="text-cyan-200 font-semibold text-[11px]">OpenRouter</span>
+                  <span className="text-[9px] text-cyan-400/50">Not Linked</span>
                 </div>
 
                 {/* 6. Ollama (No Models, Gray) */}
-                <div className="p-2 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between">
-                  <span className="text-cyan-200 font-semibold">Ollama</span>
+                <div
+                  onClick={() => setShowProviders(true)}
+                  className="p-1.5 rounded border border-cyan-500/15 bg-[#030d1a] flex flex-col justify-between cursor-pointer hover:border-cyan-400/40"
+                >
+                  <span className="text-cyan-200 font-semibold text-[11px]">Ollama</span>
                   <span className="text-[9px] text-cyan-400/50">No Models</span>
                 </div>
 
                 {/* 7. Claude Code (Connected, Purple) */}
-                <div className="p-2 rounded border border-purple-500/30 bg-purple-950/20 flex flex-col justify-between shadow-[0_0_8px_rgba(168,85,247,0.15)]">
-                  <span className="text-purple-200 font-semibold">Claude Code</span>
+                <div
+                  onClick={() => setShowProviders(true)}
+                  className="p-1.5 rounded border border-purple-500/30 bg-purple-950/20 flex flex-col justify-between shadow-[0_0_8px_rgba(168,85,247,0.15)] cursor-pointer"
+                >
+                  <span className="text-purple-200 font-semibold text-[11px]">Claude Code</span>
                   <span className="text-[9px] text-purple-400 flex items-center gap-1">
                     <span className="w-1 h-1 rounded-full bg-purple-400 shadow-[0_0_4px_#a855f7]" />
                     Connected
@@ -913,8 +928,11 @@ export function JarvisConsole({
                 </div>
 
                 {/* 8. Cursor (Connected, Cyan) */}
-                <div className="p-2 rounded border border-cyan-500/30 bg-cyan-950/20 flex flex-col justify-between shadow-[0_0_8px_rgba(0,229,255,0.15)]">
-                  <span className="text-cyan-200 font-semibold">Cursor</span>
+                <div
+                  onClick={() => setShowProviders(true)}
+                  className="p-1.5 rounded border border-cyan-500/30 bg-cyan-950/20 flex flex-col justify-between shadow-[0_0_8px_rgba(0,229,255,0.15)] cursor-pointer"
+                >
+                  <span className="text-cyan-200 font-semibold text-[11px]">Cursor</span>
                   <span className="text-[9px] text-cyan-400 flex items-center gap-1">
                     <span className="w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_4px_#00e5ff]" />
                     Connected
@@ -922,8 +940,11 @@ export function JarvisConsole({
                 </div>
 
                 {/* 9. Copilot (Connected, Green) */}
-                <div className="p-2 rounded border border-emerald-500/30 bg-emerald-950/20 flex flex-col justify-between shadow-[0_0_8px_rgba(16,185,129,0.15)]">
-                  <span className="text-emerald-200 font-semibold">Copilot</span>
+                <div
+                  onClick={() => setShowProviders(true)}
+                  className="p-1.5 rounded border border-emerald-500/30 bg-emerald-950/20 flex flex-col justify-between shadow-[0_0_8px_rgba(16,185,129,0.15)] cursor-pointer"
+                >
+                  <span className="text-emerald-200 font-semibold text-[11px]">Copilot</span>
                   <span className="text-[9px] text-emerald-400 flex items-center gap-1">
                     <span className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_4px_#10b981]" />
                     Connected
@@ -931,7 +952,7 @@ export function JarvisConsole({
                 </div>
               </div>
 
-              <div className="text-center pt-1.5">
+              <div className="text-center pt-1">
                 <button
                   onClick={() => setShowProviders(true)}
                   className="text-[10px] font-mono text-cyan-400/80 hover:text-cyan-200 transition"

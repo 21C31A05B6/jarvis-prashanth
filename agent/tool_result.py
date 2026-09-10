@@ -130,6 +130,9 @@ class ToolResult:
 
 def coerce_tool_result(raw: Any) -> ToolResult:
     """Convert arbitrary tool return values into a structured ToolResult."""
+    if raw is None:
+        return ToolResult.fail("No output produced.", ErrorCategory.TOOL_EXECUTION_FAILED)
+
     if isinstance(raw, ToolResult):
         return raw
 

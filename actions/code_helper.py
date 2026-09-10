@@ -485,7 +485,17 @@ def _run_action(file_path: str, description: str, args: list, timeout: int, play
     desc = (description or "").strip()
     if desc:
         desc_lower = desc.lower()
-        if any(kw in desc_lower for kw in ("project", "jarvis", "app", "application", "run", "start")):
+        project_launch_keywords = (
+            "run project", "start project", "launch project",
+            "run the project", "start the project",
+            "start jarvis", "run jarvis", "launch jarvis",
+            "run app", "start app", "launch app"
+        )
+        # Only treat as project launch if it's explicitly a short natural language request
+        if desc_lower in project_launch_keywords or (
+            any(desc_lower.startswith(kw) for kw in project_launch_keywords)
+            and not any(ch in desc for ch in ("-", "/", "\\", '"', "'", ";", "|", "&", ">", "<", "$"))
+        ):
             for candidate in ("run_jarvis.bat", "run.bat", "main.py", "app.py"):
                 target = BASE_DIR / candidate
                 if target.is_file():

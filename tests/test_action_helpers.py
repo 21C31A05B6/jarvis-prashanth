@@ -1,8 +1,20 @@
+import sys
 import tempfile
 import unittest
 import base64
 import asyncio
 import json
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 from email import message_from_bytes
 from io import BytesIO
 from pathlib import Path

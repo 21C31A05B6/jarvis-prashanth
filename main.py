@@ -4,6 +4,18 @@ import re
 import threading
 import json
 import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import traceback
 import uuid
 from pathlib import Path
@@ -107,7 +119,7 @@ DEFAULT_VOICE_NAME   = "puck"
 
 RECEIVE_SAMPLE_RATE = 24000
 CHUNK_SIZE          = 1024
-LIVE_VAD_SILENCE_MS = 150
+LIVE_VAD_SILENCE_MS = 200
 STARTUP_CLAPS_REQUIRED = 2
 STARTUP_CLAP_MAX_GAP_SECONDS = 4.0
 STARTUP_CLAP_COOLDOWN_SECONDS = 0.22
@@ -2700,8 +2712,10 @@ def main():
     running_as_app = getattr(sys, "frozen", False)
 
     if os.environ.get("JARVIS_CLI") != "1" and not running_as_app:
-        print("[JARVIS] Please launch with the JARVIS CLI: jarvis")
-        return
+        # Default to enabling CLI mode when run directly
+        os.environ["JARVIS_CLI"] = "1"
+        if "JARVIS_SKIP_CLAP_GATE" not in os.environ:
+            os.environ["JARVIS_SKIP_CLAP_GATE"] = "1"
 
     # ── Wake-Word-Only Mode ──────────────────────────────────────
     # When JARVIS_WAKE_WORD_ONLY=1 (set by startup/jarvis_autostart.bat),

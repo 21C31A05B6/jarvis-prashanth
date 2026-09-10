@@ -8,6 +8,19 @@ individual test_ui_*.py / test_vision_preview.py / test_graphics_quality.py
 own PyQt6 import and skip cleanly when it — or a working display — isn't
 """
 import os
+import sys
+
+# Configure UTF-8 for Windows console/subprocesses to prevent charmap UnicodeEncodeErrors
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 import core.qt_init  # noqa: F401 - Initialize Qt6 DLLs on Windows before importing PyQt6
 

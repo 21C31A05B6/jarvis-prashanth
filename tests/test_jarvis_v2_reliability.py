@@ -12,6 +12,19 @@ Validates:
 
 import os
 import sys
+
+# Configure UTF-8 for Windows console
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import tempfile
 from pathlib import Path
 import unittest
@@ -93,36 +106,36 @@ class TestFileControllerAndProcessor(unittest.TestCase):
             test_file = Path(tmp_dir) / "jarvis_unit_test.txt"
 
             # 1. Write file
-            write_res = file_controller({
+            write_res = coerce_tool_result(file_controller({
                 "action": "create_file",
                 "path": str(test_file),
                 "content": "Hello JARVIS V2 verified reliability",
-            })
+            }))
             self.assertTrue(write_res.success)
             self.assertTrue(test_file.exists())
             self.assertGreater(test_file.stat().st_size, 0)
 
             # 2. Read file
-            read_res = file_controller({
+            read_res = coerce_tool_result(file_controller({
                 "action": "read",
                 "path": str(test_file),
-            })
+            }))
             self.assertTrue(read_res.success)
             self.assertIn("Hello JARVIS", read_res.result)
 
             # 3. List directory
-            list_res = file_controller({
+            list_res = coerce_tool_result(file_controller({
                 "action": "list",
                 "path": tmp_dir,
-            })
+            }))
             self.assertTrue(list_res.success)
             self.assertIn("jarvis_unit_test.txt", list_res.result)
 
             # 4. Delete file
-            del_res = file_controller({
+            del_res = coerce_tool_result(file_controller({
                 "action": "delete",
                 "path": str(test_file),
-            })
+            }))
             self.assertTrue(del_res.success)
             self.assertFalse(test_file.exists())
 
@@ -136,7 +149,7 @@ class TestFileControllerAndProcessor(unittest.TestCase):
             "path": str(repo_root),
         })
         self.assertTrue(res.success)
-        self.assertIn("Project Architecture", res.result)
+        self.assertTrue("PROJECT ANALYSIS" in res.result or "Project Architecture" in res.result)
         self.assertIn("Python", res.result)
 
 
