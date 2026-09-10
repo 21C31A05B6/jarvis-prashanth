@@ -432,6 +432,28 @@ class ThemeManager:
         cls._listeners.append(cb)
 
 
+MAX_COMMAND_LENGTH = 4000
+
+
+def _validated_command_text(raw: str) -> tuple[str, str]:
+    """Normalize desktop commands and return a user-facing validation error."""
+    text = " ".join(str(raw or "").split())
+    if not text:
+        return "", "Enter a command first."
+    if len(text) > MAX_COMMAND_LENGTH:
+        return "", f"Command is too long ({MAX_COMMAND_LENGTH} characters maximum)."
+    return text, ""
+
+
+def _mark_command_input_invalid(input_widget: QLineEdit, message: str) -> None:
+    input_widget.setToolTip(message)
+    input_widget.setStyleSheet(
+        input_widget.styleSheet()
+        + f" QLineEdit {{ border: 1px solid {C.RED}; }}"
+    )
+    input_widget.setFocus()
+
+
 # ---------------------------------------------------------------------------
 # ChatBubbleWidget — chat-style conversation view
 # ---------------------------------------------------------------------------
@@ -608,9 +630,11 @@ class ChatBubbleWidget(QWidget):
         sb.setValue(sb.maximum())
 
     def _submit(self):
-        txt = self._input.text().strip()
-        if not txt:
+        txt, error = _validated_command_text(self._input.text())
+        if error:
+            _mark_command_input_invalid(self._input, error)
             return
+        self._input.setToolTip("")
         self._input.clear()
         self.command_submitted.emit(txt)
 
@@ -844,9 +868,11 @@ class FocusDialogueWidget(QWidget):
         self._message_lbl.setText(body)
 
     def _submit(self):
-        text = self._input.text().strip()
-        if not text:
+        text, error = _validated_command_text(self._input.text())
+        if error:
+            _mark_command_input_invalid(self._input, error)
             return
+        self._input.setToolTip("")
         self._input.clear()
         self.command_submitted.emit(text)
 
