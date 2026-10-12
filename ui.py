@@ -216,6 +216,7 @@ class C:
     STEEL     = "#0f2a3a"    # structural panel borders
     # ── Arc reactor blue — primary energy ────────────────────────────────────
     PRI       = "#00c8ff"    # arc reactor blue
+    PRI_B     = "#00e5ff"    # bright primary border / accent
     PRI_DIM   = "#006a88"
     PRI_GHO   = "#001520"
     PRI_GLOW  = "#00c8ff14"
