@@ -345,7 +345,11 @@ def wait_for_startup_claps(
     return True
 
 
-WAKE_WORD_PHRASES = ("hey jarvis", "jarvis", "hey jarvis wake up")
+WAKE_WORD_PHRASES = (
+    "hey jarvis", "jarvis", "hey jarvis wake up", "wake up jarvis",
+    "hi jarvis", "hay jarvis", "hey harvis", "hay harvis", "harvis",
+    "ok jarvis", "okay jarvis",
+)
 WAKE_WORD_MIN_SPEECH_SECONDS = 0.35
 WAKE_WORD_SILENCE_TO_FINALIZE = 0.5
 WAKE_WORD_MAX_UTTERANCE_SECONDS = 4.0
@@ -2838,6 +2842,14 @@ def main():
         if not wait_for_wake_word(api_key=api_key):
             print("[JARVIS] Wake word not detected. Exiting.")
             return
+
+        try:
+            py_bin = sys.executable
+            if "pythonw.exe" in py_bin.lower():
+                py_bin = py_bin.lower().replace("pythonw.exe", "python.exe")
+            subprocess.Popen([py_bin, "-m", "actions.todo_dialog"])
+        except Exception:
+            pass
     else:
         # Normal startup: clap gate
         if not wait_for_startup_claps():
