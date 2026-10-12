@@ -27,7 +27,7 @@ from PyQt6.QtGui import (
     QPainterPath, QPen, QPixmap, QRadialGradient, QShortcut,
 )
 from PyQt6.QtWidgets import (
-    QApplication, QComboBox, QCheckBox, QFormLayout, QFrame, QGraphicsOpacityEffect,
+    QApplication, QComboBox, QCheckBox, QFileDialog, QFormLayout, QFrame, QGraphicsOpacityEffect,
     QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMenu, QPushButton,
     QScrollArea, QSizePolicy, QSpinBox, QSplitter, QStackedWidget, QSystemTrayIcon, QTextEdit,
     QVBoxLayout, QWidget, QProgressBar,
