@@ -17,6 +17,7 @@ import platform
 import re
 import subprocess
 import threading
+import webbrowser
 from email.header import decode_header, make_header
 from email.message import EmailMessage
 from email.utils import getaddresses
@@ -528,10 +529,22 @@ async def _assist_gmail_sign_in(page, player=None, timeout_seconds: float = 90.0
     return False
 
 
-async def _open_gmail_compose_fields(session, player=None):
+async def _open_gmail_compose_fields(session, draft: dict[str, str] | None = None, player=None):
     page = await session._get_page()
     await page.bring_to_front()
-    compose_url = "https://mail.google.com/mail/u/0/?view=cm&fs=1&tf=1"
+    params = {"view": "cm", "fs": "1", "tf": "1"}
+    if draft:
+        if draft.get("to"):
+            params["to"] = draft["to"]
+        if draft.get("subject"):
+            params["su"] = draft["subject"]
+        if draft.get("body"):
+            params["body"] = draft["body"]
+        if draft.get("cc"):
+            params["cc"] = draft["cc"]
+        if draft.get("bcc"):
+            params["bcc"] = draft["bcc"]
+    compose_url = f"https://mail.google.com/mail/?{urlencode(params)}"
     try:
         await page.goto(compose_url, wait_until="domcontentloaded", timeout=45_000)
     except Exception:
@@ -673,19 +686,22 @@ async def _gmail_visible_recipient_text(page) -> str:
 
 
 async def _gmail_web_prepare_once(session, draft: dict[str, str], player=None) -> str:
-    page, fields, error = await _open_gmail_compose_fields(session, player=player)
+    page, fields, error = await _open_gmail_compose_fields(session, draft=draft, player=player)
     if error:
         return error
 
     recipients = [item.strip() for item in draft["to"].split(",") if item.strip()]
-    _compose_progress(player, "To", draft["to"])
-    await fields["to"].click()
-    for recipient in recipients:
-        try:
-            await fields["to"].press_sequentially(recipient, delay=4)
-        except AttributeError:
-            await fields["to"].type(recipient, delay=4)
-        await fields["to"].press("Enter")
+    recipient_text = await _gmail_visible_recipient_text(page)
+    recipients_needed = [r for r in recipients if r.lower() not in recipient_text.lower()]
+    if recipients_needed:
+        _compose_progress(player, "To", draft["to"])
+        await fields["to"].click()
+        for recipient in recipients_needed:
+            try:
+                await fields["to"].press_sequentially(recipient, delay=4)
+            except AttributeError:
+                await fields["to"].type(recipient, delay=4)
+            await fields["to"].press("Enter")
 
     if draft.get("cc") or draft.get("bcc"):
         for locator in (
@@ -708,21 +724,29 @@ async def _gmail_web_prepare_once(session, draft: dict[str, str], player=None) -
         key = field_name.lower()
         if not draft.get(key):
             continue
+        expected = [item.strip() for item in draft[key].split(",") if item.strip()]
+        if all(addr.lower() in recipient_text.lower() for addr in expected):
+            continue
         locator = await _first_visible(page, selectors, timeout_seconds=4.0)
         if locator is None:
             return f"Gmail opened the draft, but JARVIS could not locate the {field_name} field. Nothing was sent."
         _compose_progress(player, field_name, draft[key])
-        for recipient in [item.strip() for item in draft[key].split(",") if item.strip()]:
+        for recipient in expected:
             try:
                 await locator.press_sequentially(recipient, delay=4)
             except AttributeError:
                 await locator.type(recipient, delay=4)
             await locator.press("Enter")
 
-    _compose_progress(player, "Subject", draft["subject"])
-    await _type_visible(fields["subject"], draft["subject"], delay_ms=3)
-    _compose_progress(player, "Body", draft["body"])
-    await _type_visible(fields["body"], draft["body"], delay_ms=1)
+    visible_subject = await fields["subject"].input_value()
+    if _normalized_visible_text(visible_subject) != _normalized_visible_text(draft["subject"]):
+        _compose_progress(player, "Subject", draft["subject"])
+        await _type_visible(fields["subject"], draft["subject"], delay_ms=3)
+
+    visible_body = await fields["body"].inner_text()
+    if _normalized_visible_text(visible_body) != _normalized_visible_text(draft["body"]):
+        _compose_progress(player, "Body", draft["body"])
+        await _type_visible(fields["body"], draft["body"], delay_ms=1)
 
     # Verify the exact text. If a key event was dropped, finish the field with a
     # direct fill instead of abandoning a half-written draft.
@@ -770,6 +794,37 @@ async def _gmail_web_prepare_async(session, draft: dict[str, str], player=None) 
         "Gmail interrupted the compose operation twice, so JARVIS discarded the incomplete draft. "
         f"Nothing was sent. Details: {last_error}"
     )
+
+
+def _open_gmail_web_url_fallback(draft: dict[str, str], player=None) -> bool:
+    try:
+        params = {
+            "view": "cm",
+            "fs": "1",
+            "tf": "1",
+            "to": draft.get("to", ""),
+            "su": draft.get("subject", ""),
+            "body": draft.get("body", ""),
+        }
+        if draft.get("cc"):
+            params["cc"] = draft["cc"]
+        if draft.get("bcc"):
+            params["bcc"] = draft["bcc"]
+        compose_url = f"https://mail.google.com/mail/?{urlencode(params)}"
+        if player:
+            try:
+                player.write_log(f"[Gmail] Opening compose window in browser via fallback: {draft.get('to')}")
+            except Exception:
+                pass
+        webbrowser.open(compose_url)
+        return True
+    except Exception as exc:
+        if player:
+            try:
+                player.write_log(f"[Gmail Fallback Error] {exc}")
+            except Exception:
+                pass
+        return False
 
 
 def _gmail_web_prepare(draft: dict[str, str], player=None, browser: str = "chrome") -> str:
@@ -1110,15 +1165,22 @@ def _prepare_email(params: dict, player=None) -> str:
         browser = str(params.get("browser", "chrome")).strip().lower() or "chrome"
         draft["browser"] = browser
         result = _gmail_web_prepare(draft, player=player, browser=browser)
-        if result != "GMAIL_WEB_DRAFT_READY":
+        if result == "GMAIL_WEB_DRAFT_READY":
+            draft["delivery"] = "gmail_web"
+        elif any(phrase in result.lower() for phrase in ("closed", "target page", "could not open", "could not launch", "interrupted")):
+            opened = _open_gmail_web_url_fallback(draft, player=player)
+            if opened:
+                draft["delivery"] = "gmail_web_url"
+            else:
+                return result
+        else:
             return result
-        draft["delivery"] = "gmail_web"
     _set_pending_email(draft)
-    preview = body if len(body) <= 800 else body[:800].rstrip() + "…"
+    preview = body if len(body) <= 800 else body[:800].rstrip() + "..."
     copies = (f"\nCc: {cc}" if cc else "") + (f"\nBcc: {bcc}" if bcc else "")
     return (
         "EMAIL_APPROVAL_REQUIRED|A pending email is ready. Nothing has been sent.\n"
-        + ("JARVIS opened Gmail and visibly typed this draft. It remains open for your review.\n" if provider == "gmail" else "")
+        + ("JARVIS opened Gmail and visibly typed this draft. It remains open for your review.\n" if draft.get("delivery") == "gmail_web" else "JARVIS opened Gmail with this draft ready for review.\n" if provider == "gmail" else "")
         + f"Provider: {'Gmail' if provider == 'gmail' else 'Apple Mail' if provider == 'apple_mail' else 'Default mail app'}\n"
         f"To: {to}{copies}\nSubject: {subject}\n\n{preview}\n\n"
         "Ask the user to approve, revise, or cancel this exact email."
@@ -1271,6 +1333,14 @@ def email_control(parameters: dict | None = None, response=None, player=None, se
         draft_provider = draft.get("provider", "gmail")
         if draft.get("delivery") == "gmail_web":
             return _gmail_web_send(draft)
+        if draft.get("delivery") == "gmail_web_url":
+            try:
+                if _gmail_credentials_path().exists() or _gmail_token_path().exists():
+                    return _send_gmail(draft)
+            except Exception:
+                pass
+            _clear_pending_email()
+            return f"Your draft to {draft['to']} is open in Gmail. Please review it in your browser and click Send."
         if draft_provider == "gmail":
             return _send_gmail(draft)
         if draft_provider == "apple_mail" and _SYSTEM == "Darwin":

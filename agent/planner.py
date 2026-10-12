@@ -187,6 +187,19 @@ code_helper
 dev_agent
   description: string (required)
   language: string (optional)
+
+hermes_control
+  action: "ai_chat" | "coding" | "terminal" | "web" | "browser" | "computer_use" | "files" | "memory" | "learning" | "subagents" | "parallel" | "docker" | "remote_exec" | "telegram" | "discord" | "slack" | "whatsapp" | "email" | "voice" | "tts" | "images" | "automation" | "research" | "mcp" | "models" | "mixture_of_agents" | "status" (required)
+  prompt: string (optional)
+  command: string (optional)
+  code: string (optional)
+  path: string (optional)
+  diff: string (optional)
+  url: string (optional)
+  subaction: string (optional)
+  model: string (optional)
+  task: string (optional)
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"

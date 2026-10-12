@@ -60,6 +60,7 @@ prepare_message_reply = _lazy_action("actions.send_message", "prepare_message_re
 email_control = _lazy_action("actions.email_control", "email_control")
 check_messages = _lazy_action("actions.message_monitor", "check_messages")
 reminder = _lazy_action("actions.reminder", "reminder")
+todo_scheduler = _lazy_action("actions.todo_scheduler", "todo_scheduler")
 computer_settings = _lazy_action("actions.computer_settings", "computer_settings")
 screen_process = _lazy_action("actions.screen_processor", "screen_process")
 youtube_video = _lazy_action("actions.youtube_video", "youtube_video")
@@ -86,6 +87,7 @@ whatsapp_control = _lazy_action("actions.whatsapp_control", "whatsapp_control")
 cloud_storage = _lazy_action("actions.cloud_storage", "cloud_storage")
 external_ai = _lazy_action("actions.external_ai", "external_ai")
 skill_manager = _lazy_action("actions.skill_manager", "skill_manager")
+hermes_control = _lazy_action("actions.hermes_control", "hermes_control")
 
 
 def get_base_dir():
@@ -743,6 +745,37 @@ TOOL_DECLARATIONS = [
                 "message": {"type": "STRING", "description": "Reminder message text"}
             },
             "required": ["date", "time", "message"]
+        }
+    },
+    {
+        "name": "todo_scheduler",
+        "description": (
+            "Manages the user's Todo list, tasks, and schedules. "
+            "Use this whenever the user wants to add/save a todo or task, schedule an activity, "
+            "view their list, mark a task completed, or delete a task. "
+            "It runs tasks even when offline (via OS Task Scheduler). "
+            "If the user is online, it speaks directly to them; if offline, it sends an email to prashanthpogula24@gmail.com. "
+            "If until_done is true, it persistently tracks and retries until the task is completed."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {
+                    "type": "STRING",
+                    "enum": ["add", "list", "complete", "delete", "run", "status"],
+                    "description": "Operation to perform. Default: add or list."
+                },
+                "title": {"type": "STRING", "description": "Title or summary of the task."},
+                "description": {"type": "STRING", "description": "Detailed instructions or notes for the task."},
+                "due_date": {"type": "STRING", "description": "Due date in YYYY-MM-DD format (e.g. 2026-10-12). Optional."},
+                "due_time": {"type": "STRING", "description": "Due time in HH:MM format (24-hour, e.g. 16:30). Optional."},
+                "until_done": {"type": "BOOLEAN", "description": "Keep alerting/retrying until the task is completed (default: true)."},
+                "action_type": {"type": "STRING", "enum": ["reminder", "execute"], "description": "reminder for verbal/email alert, execute for running command."},
+                "command": {"type": "STRING", "description": "CLI command to run if action_type is execute."},
+                "email": {"type": "STRING", "description": "Recipient email if user is offline (default: prashanthpogula24@gmail.com)."},
+                "task_id": {"type": "STRING", "description": "Task ID for complete, delete, or run."}
+            },
+            "required": ["action"]
         }
     },
     {
@@ -1582,6 +1615,54 @@ TOOL_DECLARATIONS = [
             "required": ["action"]
         }
     },
+    {
+        "name": "hermes_control",
+        "description": (
+            "Engages the Hermes Agent sub-system covering 26 capabilities: "
+            "AI chat across multiple LLMs, coding (patch/execute/test), terminal execution, "
+            "web search/content extraction, browser automation, graphical computer use, "
+            "file management, cross-session memory, self-improving skill learning, subagent delegation, "
+            "parallel workstreams, Docker container execution, remote execution (SSH/Modal/Daytona/Vercel Sandbox), "
+            "messaging (Telegram, Discord, Slack, WhatsApp), email workflows, voice speech transcription, "
+            "TTS, image generation/vision, cron automation, multi-step research, MCP servers, "
+            "multiple AI model switching, and Mixture of Agents (MoA) aggregator consensus."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {
+                    "type": "STRING",
+                    "description": (
+                        "Capability to control: ai_chat | coding | terminal | web | browser | "
+                        "computer_use | files | memory | learning | subagents | parallel | docker | "
+                        "remote_exec | telegram | discord | slack | whatsapp | email | voice | tts | "
+                        "images | automation | research | mcp | models | mixture_of_agents | status"
+                    ),
+                },
+                "prompt": {"type": "STRING", "description": "Prompt, instruction, or query for the action."},
+                "command": {"type": "STRING", "description": "Terminal, Docker, or remote execution command."},
+                "code": {"type": "STRING", "description": "Source code for code execution."},
+                "path": {"type": "STRING", "description": "File or workspace path."},
+                "diff": {"type": "STRING", "description": "Unified diff or patch content."},
+                "url": {"type": "STRING", "description": "Target website URL."},
+                "selector": {"type": "STRING", "description": "CSS or DOM selector for browser click/type."},
+                "text": {"type": "STRING", "description": "Text to type or synthesize for TTS."},
+                "subaction": {"type": "STRING", "description": "Subaction within the capability."},
+                "model": {"type": "STRING", "description": "Target AI model (e.g. gpt-4.1, claude-3-7-sonnet, deepseek-r1)."},
+                "models": {"type": "ARRAY", "items": {"type": "STRING"}, "description": "Model list for Mixture of Agents."},
+                "backend": {"type": "STRING", "description": "Remote execution backend (ssh, modal, daytona, vercel_sandbox)."},
+                "image": {"type": "STRING", "description": "Docker container image."},
+                "schedule": {"type": "STRING", "description": "Cron expression for automation."},
+                "key": {"type": "STRING", "description": "Memory key."},
+                "value": {"type": "STRING", "description": "Memory value."},
+                "task": {"type": "STRING", "description": "Task for subagent delegation."},
+                "tasks": {"type": "ARRAY", "items": {"type": "STRING"}, "description": "Multiple tasks for parallel execution."},
+                "channel": {"type": "STRING", "description": "Chat or messaging channel."},
+                "receiver": {"type": "STRING", "description": "Message recipient or phone number."}
+            },
+            "required": ["action"]
+        }
+    },
 ]
 
 # Tool names exposed by hosted clients. The names here are Gemini function
@@ -1605,6 +1686,8 @@ CLOUD_SAFE_ACTIONS = frozenset({
     "cloud_storage",
     "external_ai",
     "skill_manager",
+    "hermes_control",
+    "todo_scheduler",
 })
 
 LOCAL_MACHINE_ONLY_ACTIONS = frozenset({
@@ -1678,6 +1761,11 @@ class JarvisLive:
         self._self_quit_timer = None
         self._shutdown_requested = threading.Event()
         self._tour_active = False
+        try:
+            from actions.todo_scheduler import start_scheduler_daemon
+            start_scheduler_daemon(player=self.ui, speak_fn=self.speak)
+        except Exception as exc:
+            print(f"[JARVIS] ⚠️ Todo scheduler init failed: {exc}")
 
     def _on_text_command(self, text: str):
         if not self._loop or not self.session:
@@ -1839,6 +1927,11 @@ class JarvisLive:
             out_queue = getattr(self, "out_queue", None)
             if out_queue is not None:
                 out_queue.put_nowait(None)
+            try:
+                from actions.todo_scheduler import stop_scheduler_daemon
+                stop_scheduler_daemon()
+            except Exception:
+                pass
         except Exception as exc:
             print(f"[JARVIS] ⚠️ Shutdown session close failed: {exc}")
 
@@ -2120,6 +2213,10 @@ class JarvisLive:
                 r = await asyncio.to_thread(lambda: reminder(parameters=args, response=None, player=self.ui))
                 result = r or "Reminder set."
 
+            elif name == "todo_scheduler":
+                r = await asyncio.to_thread(lambda: todo_scheduler(parameters=args, response=None, player=self.ui, speak=self.speak))
+                result = r or "Task processed."
+
             elif name == "youtube_video":
                 r = await asyncio.to_thread(lambda: youtube_video(parameters=args, response=None, player=self.ui))
                 result = r or "Done."
@@ -2341,6 +2438,10 @@ class JarvisLive:
                 r = await asyncio.to_thread(lambda: skill_manager(parameters=args, response=None, player=self.ui, session_memory=None))
                 result = r or "Skill manager action completed."
 
+            elif name == "hermes_control":
+                r = await asyncio.to_thread(lambda: hermes_control(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Hermes action completed."
+
             else:
                 result = f"Unknown tool: {name}"
 
@@ -2364,13 +2465,13 @@ class JarvisLive:
     async def _execute_tool_batch(self, calls):
         """Run read-only calls concurrently while preserving mutation order."""
         mutating = {
-            "send_message", "prepare_message_reply", "email_control", "reminder",
+            "send_message", "prepare_message_reply", "email_control", "reminder", "todo_scheduler",
             "computer_settings", "computer_control", "desktop_control", "file_controller",
             "file_processor", "code_helper", "dev_agent", "game_updater",
             "create_presentation", "save_memory", "jarvis_ui_control", "graphics_quality",
             "calendar_control", "drive_control", "github_control", "slack_control",
             "discord_control", "teams_control", "whatsapp_control", "cloud_storage", "external_ai",
-            "skill_manager",
+            "skill_manager", "hermes_control",
         }
         call_list = list(calls or [])
         if any(getattr(call, "name", "") in mutating for call in call_list):

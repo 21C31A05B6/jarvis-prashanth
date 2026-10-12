@@ -7,9 +7,21 @@ import os
 import platform
 import shutil
 import subprocess
+import sys
 import threading
 from pathlib import Path
 from typing import Optional, Any
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 from playwright.async_api import (
     async_playwright,
@@ -105,12 +117,12 @@ def _real_profile_dir(browser: str) -> str:
 
     for p in candidates:
         if p.exists():
-            print(f"[Browser] ✅ Real profile found for {browser}: {p}")
+            print(f"[Browser] [OK] Real profile found for {browser}: {p}")
             return str(p)
 
     fallback = home / ".jarvis_profiles" / browser
     fallback.mkdir(parents=True, exist_ok=True)
-    print(f"[Browser] ⚠️  Real profile not found for {browser}, using: {fallback}")
+    print(f"[Browser] [WARN] Real profile not found for {browser}, using: {fallback}")
     return str(fallback)
 
 def _firefox_profile_dir() -> Optional[str]:
@@ -277,7 +289,7 @@ def _resolve_browser(name: str) -> dict | None:
     if spec.get("special") == "opera_windows":
         exe = _find_opera_windows()
         if not exe:
-            print(f"[Browser] ⚠️  Opera executable not found on Windows.")
+            print(f"[Browser] [WARN] Opera executable not found on Windows.")
         return {"engine": engine, "exe": exe, "channel": channel}
 
     for b in bins:
@@ -386,6 +398,8 @@ class _BrowserSession:
         self._pw = await async_playwright().start()
 
     def run(self, coro, timeout: int = 60) -> Any:
+        if not self._loop or not self._loop.is_running():
+            self.start()
         if not self._loop:
             raise RuntimeError(f"Session for '{self.browser_name}' not started.")
         future = asyncio.run_coroutine_threadsafe(coro, self._loop)
@@ -414,10 +428,15 @@ class _BrowserSession:
     async def _launch(self):
         """
         Tarayıcıyı gerçek kullanıcı profiliyle başlatır.
-        Context zaten açıksa hiçbir şey yapmaz.
+        Context zaten açıksa ve canlıysa hiçbir şey yapmaz.
         """
         if self._context is not None:
-            return
+            try:
+                _ = self._context.pages
+                return
+            except Exception:
+                self._context = None
+                self._page = None
 
         if self._spec is None:
             raise RuntimeError(
@@ -427,6 +446,8 @@ class _BrowserSession:
         engine_name = self._spec["engine"]
         exe         = self._spec["exe"]
         channel     = self._spec["channel"]
+        if self._pw is None:
+            await self._async_init()
         engine_obj  = getattr(self._pw, engine_name)
 
         if engine_name == "firefox":
@@ -445,6 +466,12 @@ class _BrowserSession:
                 self._context = await engine_obj.launch_persistent_context(profile, **kwargs)
             except Exception as e:
                 print(f"[Browser] Firefox real profile failed ({e}), using JARVIS profile")
+                if self._context:
+                    try:
+                        await self._context.close()
+                    except Exception:
+                        pass
+                    self._context = None
                 jarvis = str(Path.home() / ".jarvis_profiles" / "firefox_jarvis")
                 Path(jarvis).mkdir(parents=True, exist_ok=True)
                 self._context = await engine_obj.launch_persistent_context(jarvis, **kwargs)
@@ -452,7 +479,7 @@ class _BrowserSession:
             await asyncio.sleep(0.3)
             pages = self._context.pages
             self._page = pages[0] if pages else await self._context.new_page()
-            print(f"[Browser] ✅ Firefox launched")
+            print(f"[Browser] [OK] Firefox launched")
             return
 
         if engine_name == "webkit":
@@ -468,7 +495,7 @@ class _BrowserSession:
             await asyncio.sleep(0.3)
             pages = self._context.pages
             self._page = pages[0] if pages else await self._context.new_page()
-            print(f"[Browser] ✅ Safari launched")
+            print(f"[Browser] [OK] Safari launched")
             return
 
         profile = _real_profile_dir(self.browser_name)
@@ -503,10 +530,16 @@ class _BrowserSession:
             await asyncio.sleep(0.3)
             pages = self._context.pages
             self._page = pages[0] if pages else await self._context.new_page()
-            print(f"[Browser] ✅ Launched [{label}] profile={profile}")
+            print(f"[Browser] [OK] Launched [{label}] profile={profile}")
             return
         except Exception as e:
-            print(f"[Browser] ⚠️  Real profile failed for {label}: {e}")
+            print(f"[Browser] [WARN] Real profile failed for {label}: {e}")
+            if self._context:
+                try:
+                    await self._context.close()
+                except Exception:
+                    pass
+                self._context = None
 
         jarvis_profile = str(Path.home() / ".jarvis_profiles" / self.browser_name)
         Path(jarvis_profile).mkdir(parents=True, exist_ok=True)
@@ -517,13 +550,29 @@ class _BrowserSession:
             await asyncio.sleep(0.3)
             pages = self._context.pages
             self._page = pages[0] if pages else await self._context.new_page()
-            print(f"[Browser] ✅ Launched [{label}] with JARVIS profile")
+            print(f"[Browser] [OK] Launched [{label}] with JARVIS profile")
         except Exception as e2:
+            self._context = None
+            self._page = None
             raise RuntimeError(f"Could not launch {self.browser_name}: {e2}") from e2
 
     async def _get_page(self) -> Page:
+        if self._context is not None:
+            try:
+                _ = self._context.pages
+            except Exception:
+                self._context = None
+                self._page = None
         await self._launch()
-        if self._page is None or self._page.is_closed():
+        try:
+            if self._page is None or self._page.is_closed():
+                pages = self._context.pages if self._context else []
+                self._page = pages[0] if pages and not pages[0].is_closed() else await self._context.new_page()
+                await asyncio.sleep(0.2)
+        except Exception:
+            self._context = None
+            self._page = None
+            await self._launch()
             pages = self._context.pages if self._context else []
             self._page = pages[0] if pages and not pages[0].is_closed() else await self._context.new_page()
             await asyncio.sleep(0.2)
@@ -548,7 +597,7 @@ class _BrowserSession:
         result_url = await _do_goto(page)
 
         if result_url in ("about:blank", "", None, prev_url) and prev_url in ("about:blank", "", None):
-            print(f"[Browser] Still blank after goto — retrying on new tab: {url}")
+            print(f"[Browser] Still blank after goto -- retrying on new tab: {url}")
             try:
                 new_page   = await self._context.new_page()
                 self._page = new_page
@@ -753,9 +802,9 @@ class _BrowserSession:
                 el = page.locator(selector).first
                 await el.clear()
                 await el.type(str(value), delay=40)
-                results.append(f"✓ {selector}")
+                results.append(f"[OK] {selector}")
             except Exception as e:
-                errors.append(f"✗ {selector}: {e}")
+                errors.append(f"[ERR] {selector}: {e}")
         if errors and not results:
             return ToolResult.fail("Form fill failed: " + ", ".join(errors), ErrorCategory.TOOL_EXECUTION_FAILED)
         msg = "Form filled: " + ", ".join(results)
@@ -855,7 +904,7 @@ class _SessionRegistry:
         browser_name = _ALIASES.get(browser_name.lower().strip(), browser_name.lower().strip())
         self._get_or_create(browser_name)
         self._active_browser = browser_name
-        return f"Active browser → {browser_name}"
+        return f"Active browser -> {browser_name}"
 
     def close_one(self, browser_name: str) -> str:
         with self._lock:
@@ -886,8 +935,8 @@ class _SessionRegistry:
                 return "No active browser sessions."
             lines = []
             for name in self._sessions:
-                marker = " ◀ active" if name == self._active_browser else ""
-                lines.append(f"  • {name}{marker}")
+                marker = " < active" if name == self._active_browser else ""
+                lines.append(f"  * {name}{marker}")
             return "Open browsers:\n" + "\n".join(lines)
 
 

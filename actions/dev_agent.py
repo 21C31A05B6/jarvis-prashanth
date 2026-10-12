@@ -135,6 +135,7 @@ Critical rules:
 4. Entry point must be in the files list.
 5. Use relative paths only (e.g. "utils/helpers.py", not absolute paths).
 6. Standard library modules (os, sys, json, etc.) do NOT go in "dependencies".
+7. For web applications or HTML/CSS/JS with Python, ALWAYS include a Python backend server (e.g. app.py using Flask or FastAPI) to serve templates/static files and API endpoints, and set "run_command" to "python app.py".
 
 JSON:"""
 
@@ -294,18 +295,35 @@ def _open_vscode(project_dir: Path) -> bool:
     return False
 
 def _run_project(run_command: str, project_dir: Path, timeout: int = 30) -> str:
-    print(f"[DevAgent] 🚀 Running: {run_command}")
+    cmd = (run_command or "").strip()
+    if not cmd:
+        for candidate in ("run.bat", "run_jarvis.bat", "start.bat", "app.py", "main.py", "server.py", "index.py"):
+            if (project_dir / candidate).is_file():
+                if candidate.endswith((".bat", ".cmd")):
+                    cmd = candidate
+                else:
+                    cmd = f"python {candidate}"
+                break
+        else:
+            if (project_dir / "templates" / "index.html").is_file() or (project_dir / "index.html").is_file():
+                cmd = "python -m http.server 8000"
+            else:
+                return "No runnable entrypoint found in project."
+
+    print(f"[DevAgent] 🚀 Running: {cmd}")
     try:
-        parts = run_command.split()
+        parts = cmd.split()
         if parts[0].lower() == "python":
             parts[0] = sys.executable
 
+        is_bat = parts[0].lower().endswith((".bat", ".cmd"))
         result = subprocess.run(
             parts,
             capture_output=True, text=True,
             encoding="utf-8", errors="replace",
             timeout=timeout,
-            cwd=str(project_dir)
+            cwd=str(project_dir),
+            shell=is_bat
         )
 
         stdout = result.stdout.strip()

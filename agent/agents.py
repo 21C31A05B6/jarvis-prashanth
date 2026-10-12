@@ -135,6 +135,20 @@ AGENTS: dict[str, AgentDefinition] = {
         tool_names=("agent_task", "task_status"),
         hosted_tool_names=(),
     ),
+    "hermes": AgentDefinition(
+        id="hermes",
+        name="Hermes Agent",
+        description="Self-improving autonomous engine with 26 capabilities: coding, terminal execution, subagents, parallel work, Docker, remote execution, and Mixture of Agents.",
+        icon="cpu",
+        system_instruction=(
+            "You are the Hermes Agent specialist module of JARVIS. You possess advanced reasoning, "
+            "subagent delegation, terminal execution, browser control, Docker isolation, and "
+            "Mixture of Agents consensus across multiple LLMs. Use hermes_control to execute "
+            "complex, parallel, and self-improving agent workflows."
+        ),
+        tool_names=("hermes_control", "code_helper", "dev_agent", "computer_control", "browser_control", "web_search"),
+        hosted_tool_names=("web_search",),
+    ),
 }
 
 GENERAL_AGENT = AgentDefinition(

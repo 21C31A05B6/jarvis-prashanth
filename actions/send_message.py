@@ -1,3 +1,4 @@
+import os
 import json
 import io
 import difflib
@@ -1585,6 +1586,31 @@ def _open_app(app_name: str) -> bool:
 
     try:
         if os_name == "windows":
+            app_lower = app_name.lower().strip()
+            uri_map = {
+                "whatsapp": "whatsapp:",
+                "telegram": "tg:",
+                "discord": "discord:",
+                "spotify": "spotify:",
+            }
+            if app_lower in uri_map:
+                try:
+                    startfile = getattr(os, "startfile", None)
+                    if callable(startfile):
+                        startfile(uri_map[app_lower])
+                        time.sleep(2.0)
+                        return True
+                except Exception:
+                    pass
+
+            try:
+                from actions.open_app import _launch_windows
+                if _launch_windows(app_name):
+                    time.sleep(2.0)
+                    return True
+            except Exception:
+                pass
+
             pyautogui.press("win")
             time.sleep(0.5)
             _paste_text(app_name)
@@ -1675,6 +1701,30 @@ def _send_current_app(receiver: str, message: str) -> str:
     return f"Message sent{target} in the current app."
 
 def _send_whatsapp(receiver: str, message: str) -> str:
+    clean_digits = re.sub(r"[^\d+]", "", receiver or "")
+    digits_only = re.sub(r"[^\d]", "", clean_digits)
+    if len(digits_only) >= 7:
+        from urllib.parse import quote
+        encoded_msg = quote(message)
+        os_name = _get_os()
+        if os_name == "windows":
+            try:
+                startfile = getattr(os, "startfile", None)
+                if callable(startfile):
+                    startfile(f"whatsapp://send?phone={digits_only}&text={encoded_msg}")
+                time.sleep(2.0)
+                pyautogui.press("enter")
+                return f"Message sent to {receiver} via WhatsApp."
+            except Exception:
+                pass
+        import webbrowser
+        try:
+            webbrowser.open(f"https://web.whatsapp.com/send?phone={digits_only}&text={encoded_msg}")
+            time.sleep(3.0)
+            return f"Opened WhatsApp chat with {receiver}. Please review and press Send."
+        except Exception:
+            pass
+
     if not receiver:
         return _send_open_browser_chat("WhatsApp", message, ("web.whatsapp.com",))
     result = _send_open_browser_chat("WhatsApp", message, ("web.whatsapp.com",))

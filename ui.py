@@ -4030,25 +4030,126 @@ class AIActivityCanvas(QWidget):
                            qcol(C.WHITE, 80))
 
 class TaskQueueWidget(QWidget):
-    """Displays a live task queue parsed from JARVIS log messages."""
+    """
+    Displays an interactive To-Do list & Task Queue manager for JARVIS OS.
+    Features a dedicated text box to add tasks, scheduled time handling,
+    online voice announcements vs. offline email dispatches to prashanthpogula24@gmail.com,
+    and completion/deletion buttons.
+    """
 
     _sig = pyqtSignal(str, str)  # (task_name, status)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._tasks: list[dict] = []   # {name, status, ts}
+        self._tasks: list[dict] = []   # legacy compatibility: {name, status, ts}
         self._sig.connect(self._on_task)
         self.setStyleSheet("background: transparent;")
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(3)
+        lay.setContentsMargins(4, 4, 4, 4)
+        lay.setSpacing(6)
 
+        # ── Header & Action Controls ─────────────────────────────────────────
+        hdr = QHBoxLayout()
+        hdr_lbl = QLabel("TO-DO & TASK SCHEDULER")
+        hdr_lbl.setFont(QFont(DISPLAY_FONT, 8, QFont.Weight.DemiBold))
+        hdr_lbl.setStyleSheet(f"color: {C.PRI}; letter-spacing: 1px;")
+        hdr.addWidget(hdr_lbl)
+        hdr.addStretch()
+
+        pop_btn = QPushButton("⛶ Pop-out")
+        pop_btn.setToolTip("Open full floating To-Do window")
+        pop_btn.setFont(QFont(UI_FONT, 7))
+        pop_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent; color: {C.TEXT_MED};
+                border: 1px solid {C.BORDER}; border-radius: 3px;
+                padding: 2px 6px;
+            }}
+            QPushButton:hover {{
+                color: {C.PRI}; border-color: {C.PRI};
+            }}
+        """)
+        pop_btn.clicked.connect(self._launch_popup)
+        hdr.addWidget(pop_btn)
+        lay.addLayout(hdr)
+
+        # ── Pinned Task Entry Box ─────────────────────────────────────────────
+        in_frame = QFrame()
+        in_frame.setStyleSheet(f"""
+            QFrame {{
+                background: {C.PANEL};
+                border: 1px solid {C.BORDER};
+                border-radius: 4px;
+                padding: 2px;
+            }}
+        """)
+        in_lay = QHBoxLayout(in_frame)
+        in_lay.setContentsMargins(4, 2, 4, 2)
+        in_lay.setSpacing(4)
+
+        self.task_input = QLineEdit()
+        self.task_input.setPlaceholderText("Enter to-do task (e.g. 'Sync at 4:30 PM')...")
+        self.task_input.setFont(QFont(UI_FONT, 8))
+        self.task_input.setStyleSheet(f"""
+            QLineEdit {{
+                background: {C.DARK};
+                color: {C.WHITE};
+                border: 1px solid {C.BORDER};
+                border-radius: 3px;
+                padding: 4px 8px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {C.PRI};
+                background: {C.DARK2};
+            }}
+        """)
+        self.task_input.returnPressed.connect(self._add_task_from_input)
+        in_lay.addWidget(self.task_input, stretch=1)
+
+        self.add_btn = QPushButton("+ ADD")
+        self.add_btn.setFont(QFont(DISPLAY_FONT, 8, QFont.Weight.Bold))
+        self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.add_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {C.PRI};
+                color: {C.DARK};
+                border: 1px solid {C.PRI_B};
+                border-radius: 3px;
+                padding: 4px 10px;
+            }}
+            QPushButton:hover {{
+                background: {C.WHITE};
+            }}
+        """)
+        self.add_btn.clicked.connect(self._add_task_from_input)
+        in_lay.addWidget(self.add_btn)
+        lay.addWidget(in_frame)
+
+        # Mode hint line
+        try:
+            from actions.todo_scheduler import DEFAULT_EMAIL_RECIPIENT
+            recip = DEFAULT_EMAIL_RECIPIENT
+        except Exception:
+            recip = "prashanthpogula24@gmail.com"
+        hint_lbl = QLabel(f"• Online: Voice Alert  |  • Offline: Email to {recip}")
+        hint_lbl.setFont(QFont(UI_FONT, 7))
+        hint_lbl.setStyleSheet(f"color: {C.TEXT_DIM};")
+        lay.addWidget(hint_lbl)
+
+        # ── Scroll Area for tasks ─────────────────────────────────────────────
         self._container = QWidget()
         self._container.setStyleSheet("background: transparent;")
         self._c_lay = QVBoxLayout(self._container)
         self._c_lay.setContentsMargins(0, 0, 0, 0)
-        self._c_lay.setSpacing(3)
+        self._c_lay.setSpacing(4)
+
+        # Empty state label (visible when no tasks exist)
+        self._empty_state = QLabel("No tasks scheduled yet. Enter a task above.")
+        self._empty_state.setFont(QFont(UI_FONT, 8))
+        self._empty_state.setStyleSheet(f"color: {C.TEXT_DIM}; font-style: italic; padding: 12px;")
+        self._empty_state.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._c_lay.addWidget(self._empty_state)
         self._c_lay.addStretch()
 
         scroll = QScrollArea()
@@ -4064,13 +4165,43 @@ class TaskQueueWidget(QWidget):
                 background: {C.BORDER_B}; border-radius: 3px; min-height: 16px;
             }}
         """)
-        lay.addWidget(scroll)
+        lay.addWidget(scroll, stretch=1)
+
+        self.reload_tasks()
+
+        # Periodic refresh
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setInterval(4000)
+        self._refresh_timer.timeout.connect(self.reload_tasks)
+        self._refresh_timer.start()
+
+    def focus_input(self):
+        self.task_input.setFocus()
+        self.task_input.selectAll()
+
+    def _launch_popup(self):
+        try:
+            from actions.todo_dialog import open_todo_window
+            open_todo_window(parent_app=QApplication.instance())
+        except Exception as exc:
+            print(f"[TaskQueueWidget] Pop-out launch failed: {exc}")
+
+    def _add_task_from_input(self):
+        txt = self.task_input.text().strip()
+        if not txt:
+            return
+        try:
+            from actions.todo_scheduler import add_task_from_text
+            add_task_from_text(txt, until_done=True)
+            self.task_input.clear()
+            self.reload_tasks()
+        except Exception as exc:
+            print(f"[TaskQueueWidget] Add task failed: {exc}")
 
     def push_task(self, name: str, status: str):
         self._sig.emit(name, status)
 
     def _on_task(self, name: str, status: str):
-        # Update existing or add new
         for t in self._tasks:
             if t["name"] == name:
                 t["status"] = status
@@ -4081,13 +4212,90 @@ class TaskQueueWidget(QWidget):
             self._tasks.pop(0)
         self._rebuild()
 
+    def reload_tasks(self):
+        self._rebuild()
+
     def _rebuild(self):
-        # Clear layout
-        while self._c_lay.count() > 1:
-            item = self._c_lay.takeAt(0)
+        # Fetch structured tasks from todo_scheduler
+        db_tasks = []
+        try:
+            from actions.todo_scheduler import list_tasks
+            db_tasks = list_tasks()
+        except Exception:
+            pass
+
+        # Clear existing items except empty_state and stretch
+        while self._c_lay.count() > 2:
+            item = self._c_lay.takeAt(1)
             if item.widget():
                 item.widget().deleteLater()
 
+        has_any = bool(db_tasks or self._tasks)
+        self._empty_state.setVisible(not has_any)
+
+        # First add live todo items from storage
+        for t in db_tasks:
+            is_done = t.get("status") == "completed"
+            col = C.GREEN if is_done else C.PRI
+            row = QWidget()
+            row.setStyleSheet(f"""
+                QWidget {{
+                    background: {C.CARD};
+                    border: 1px solid {C.BORDER};
+                    border-left: 2px solid {col};
+                    border-radius: 4px;
+                }}
+            """)
+            rl = QHBoxLayout(row)
+            rl.setContentsMargins(6, 4, 6, 4)
+            rl.setSpacing(6)
+
+            title_str = t.get("title", "Task")
+            time_str = f"{t.get('due_date', '')} {t.get('due_time', '')}"
+            if is_done:
+                title_lbl = QLabel(f"✓ {title_str}")
+                title_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; text-decoration: line-through; background: transparent; border: none;")
+            else:
+                title_lbl = QLabel(title_str)
+                title_lbl.setStyleSheet(f"color: {C.WHITE}; font-weight: bold; background: transparent; border: none;")
+            title_lbl.setFont(QFont(UI_FONT, 8))
+            rl.addWidget(title_lbl, stretch=1)
+
+            ts_lbl = QLabel(time_str)
+            ts_lbl.setFont(QFont("Courier New", 7))
+            ts_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
+            rl.addWidget(ts_lbl)
+
+            if not is_done:
+                done_btn = QPushButton("✓")
+                done_btn.setToolTip("Mark completed")
+                done_btn.setFixedSize(20, 20)
+                done_btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {C.GREEN}22; color: {C.GREEN};
+                        border: 1px solid {C.GREEN}55; border-radius: 3px;
+                    }}
+                    QPushButton:hover {{ background: {C.GREEN}; color: #000; }}
+                """)
+                done_btn.clicked.connect(lambda _, tid=t["task_id"]: self._mark_completed(tid))
+                rl.addWidget(done_btn)
+
+            del_btn = QPushButton("✕")
+            del_btn.setToolTip("Delete task")
+            del_btn.setFixedSize(20, 20)
+            del_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {C.RED}22; color: {C.RED};
+                    border: 1px solid {C.RED}55; border-radius: 3px;
+                }}
+                QPushButton:hover {{ background: {C.RED}; color: #fff; }}
+            """)
+            del_btn.clicked.connect(lambda _, tid=t["task_id"]: self._delete_task(tid))
+            rl.addWidget(del_btn)
+
+            self._c_lay.insertWidget(self._c_lay.count() - 1, row)
+
+        # Also render any session log tasks from _tasks (if any)
         STATUS_COLORS = {
             "active":  (C.ACC,    "▶"),
             "done":    (C.GREEN,  "✓"),
@@ -4095,8 +4303,7 @@ class TaskQueueWidget(QWidget):
             "pending": (C.TEXT_DIM, "○"),
             "calling": (C.PURPLE, "◈"),
         }
-
-        for task in reversed(self._tasks[-12:]):
+        for task in reversed(self._tasks[-6:]):
             col, sym = STATUS_COLORS.get(task["status"], (C.TEXT_MED, "·"))
             row = QWidget()
             row.setStyleSheet(f"""
@@ -4129,6 +4336,22 @@ class TaskQueueWidget(QWidget):
 
             self._c_lay.insertWidget(self._c_lay.count() - 1, row)
 
+    def _mark_completed(self, task_id: str):
+        try:
+            from actions.todo_scheduler import complete_task
+            complete_task(task_id)
+            self._rebuild()
+        except Exception as exc:
+            print(f"[TaskQueueWidget] Complete task error: {exc}")
+
+    def _delete_task(self, task_id: str):
+        try:
+            from actions.todo_scheduler import delete_task
+            delete_task(task_id)
+            self._rebuild()
+        except Exception as exc:
+            print(f"[TaskQueueWidget] Delete task error: {exc}")
+
 
 # ---------------------------------------------------------------------------
 # ToolLogWidget — shows tool execution history with status
@@ -4154,6 +4377,13 @@ class ToolLogWidget(QWidget):
         self._c_lay = QVBoxLayout(self._container)
         self._c_lay.setContentsMargins(0, 0, 0, 0)
         self._c_lay.setSpacing(3)
+
+        self._empty_state = QLabel("No tool executions yet.")
+        self._empty_state.setFont(QFont(UI_FONT, 8))
+        self._empty_state.setStyleSheet(f"color: {C.TEXT_DIM}; font-style: italic; padding: 12px;")
+        self._empty_state.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._c_lay.addWidget(self._empty_state)
+
         self._c_lay.addStretch()
 
         scroll = QScrollArea()
@@ -4178,6 +4408,7 @@ class ToolLogWidget(QWidget):
         self._entries.append({"text": text, "ts": time.strftime("%H:%M:%S")})
         if len(self._entries) > 30:
             self._entries.pop(0)
+        self._empty_state.setVisible(len(self._entries) == 0)
         self._rebuild()
 
     def _rebuild(self):
@@ -6916,11 +7147,30 @@ class MainWindow(QMainWindow):
 
 
 
+        sc_todo = QShortcut(QKeySequence("Ctrl+T"), self)
+        sc_todo.activated.connect(self._open_todo_ui)
+
         # Shortcuts to show panel content as popups
         sc_show_left = QShortcut(QKeySequence("L"), self)
         sc_show_left.activated.connect(self._show_left_panel_popup)
         sc_show_right = QShortcut(QKeySequence("R"), self)
         sc_show_right.activated.connect(self._show_right_panel_popup)
+
+    def _open_todo_ui(self):
+        """Open command center, switch to TASKS tab, and focus the to-do input box."""
+        self._set_command_center(True)
+        if hasattr(self, "_mission"):
+            self._mission._switch_tab(1)
+            if hasattr(self._mission.task_widget, "focus_input"):
+                self._mission.task_widget.focus_input()
+
+    def _open_todo_popup(self):
+        """Open the dedicated floating To-Do dialog."""
+        try:
+            from actions.todo_dialog import open_todo_window
+            open_todo_window(parent_app=QApplication.instance())
+        except Exception as exc:
+            print(f"[MainWindow] Could not open todo dialog: {exc}")
     def closeEvent(self, event):
         # Minimize to tray instead of quitting (if tray is available)
         try:
@@ -7827,10 +8077,13 @@ class MainWindow(QMainWindow):
         self._utility_btn.setFixedSize(38, 34)
         self._utility_btn.setToolTip("Window and settings")
         self._utility_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._utility_menu = QMenu(self._utility_btn)
+        self._utility_menu = QMenu(self)
         self._utility_menu.addAction("Fullscreen", self._toggle_fullscreen)
         self._utility_menu.addAction("Settings", self._show_settings)
         self._utility_menu.addAction("Compact Mode", self._toggle_compact_mode)
+        self._utility_menu.addSeparator()
+        self._utility_menu.addAction("To-Do & Schedules (Ctrl+T)", self._open_todo_ui)
+        self._utility_menu.addAction("Pop-out To-Do Window", self._open_todo_popup)
         self._utility_menu.addSeparator()
         self._utility_menu.addAction("Keyboard Shortcuts", self._toggle_shortcuts_overlay)
         self._utility_menu.addAction("Close Command Center", lambda: self._set_command_center(False))
@@ -8469,6 +8722,30 @@ class MainWindow(QMainWindow):
                 self._set_command_center(False)
                 self._log.append_log("JARVIS: Returning to focus view.")
                 return
+
+            # Direct To-Do / Task commands
+            if normalized in {"open todo", "open todo list", "show todo", "show todo list", "show tasks", "open tasks"}:
+                self._open_todo_ui()
+                self._log.append_log("JARVIS: Opening your To-Do & Task list.")
+                return
+
+            if txt.lower().startswith(("todo:", "task:", "add todo", "add task", "schedule:")):
+                raw_task = re.sub(r"^(?:todo\s*:|task\s*:|add\s+todo|add\s+task|schedule\s*:?)\s*", "", txt, flags=re.IGNORECASE).strip()
+                if raw_task:
+                    try:
+                        from actions.todo_scheduler import DEFAULT_EMAIL_RECIPIENT, add_task_from_text
+                        created = add_task_from_text(raw_task, until_done=True)
+                        self._log.append_log(
+                            f"JARVIS: Scheduled task '{created['title']}' for {created['due_date']} {created['due_time']}. "
+                            f"(Online: Direct Voice | Offline: Email to {DEFAULT_EMAIL_RECIPIENT})"
+                        )
+                        if hasattr(self, "_mission") and hasattr(self._mission, "task_widget") and hasattr(self._mission.task_widget, "reload_tasks"):
+                            self._mission.task_widget.reload_tasks()
+                        return
+                    except Exception as e:
+                        self._log.append_log(f"JARVIS: Could not schedule task: {e}")
+                        return
+
             if self.on_text_command:
                 def _dispatch():
                     try:

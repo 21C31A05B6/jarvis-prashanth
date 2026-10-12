@@ -346,6 +346,10 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
         from actions.presentation_maker import create_presentation
         return create_presentation(parameters=parameters, player=None) or "Done."
 
+    elif tool == "hermes_control":
+        from actions.hermes_control import hermes_control
+        return hermes_control(parameters=parameters, player=None, speak=speak) or "Done."
+
     else:
         print(f"[Executor] ⚠️ Unknown tool '{tool}' — falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)

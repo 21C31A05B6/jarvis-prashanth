@@ -60,3 +60,10 @@ jarvis_ui_control: use for JARVIS settings, mini/compact mode, JARVIS theme/colo
 interrupt: immediately stop JARVIS speech and optionally cancel active tasks. Use when user says stop, wait, hold on, interrupt, pause, cancel that, or stop talking.
 
 interrupt_sensitivity is controlled in settings: soft, balanced, aggressive.
+
+todo_scheduler: use whenever the user wants to add, schedule, list, complete, or run tasks/todos.
+- Always use action='add' with title, description, due_date, due_time, until_done=true (by default), and email='prashanthpogula24@gmail.com'.
+- If the user is online (active at the computer), JARVIS speaks directly to them and shows desktop alerts.
+- If the user is offline (away from the computer or idle), JARVIS sends an email to prashanthpogula24@gmail.com with what they need to do.
+- If until_done=true (default: true), JARVIS keeps persistently tracking, alerting, and retrying until and unless the task is explicitly marked as completed.
+- To view existing items, use action='list'. To mark a task done, use action='complete'.

@@ -1,9 +1,21 @@
 import json
 import platform as platform_module
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 try:
     import pyautogui
@@ -23,6 +35,13 @@ UNSAFE_TYPING_APPS = {
     "iTerm2",
     "Visual Studio Code",
     "Code",
+    "cmd.exe",
+    "Command Prompt",
+    "PowerShell",
+    "powershell.exe",
+    "WindowsTerminal",
+    "Windows Terminal",
+    "bash.exe",
 }
 MESSAGING_URL_MARKERS = (
     "instagram.com/direct",
@@ -69,28 +88,43 @@ def _actual_os() -> str:
 
 
 def _frontmost_app_name() -> str:
-    if _actual_os() != "mac":
+    os_name = _actual_os()
+    if os_name == "mac":
+        try:
+            from AppKit import NSWorkspace
+
+            app = NSWorkspace.sharedWorkspace().frontmostApplication()
+            return str(app.localizedName() or "").strip() if app else ""
+        except Exception:
+            pass
+
+        script = 'tell application "System Events" to return name of first application process whose frontmost is true'
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except Exception:
+            pass
         return ""
-    try:
-        from AppKit import NSWorkspace
 
-        app = NSWorkspace.sharedWorkspace().frontmostApplication()
-        return str(app.localizedName() or "").strip() if app else ""
-    except Exception:
-        pass
+    if os_name == "windows":
+        try:
+            import ctypes
+            hwnd = ctypes.windll.user32.GetForegroundWindow()
+            if hwnd:
+                length = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
+                buff = ctypes.create_unicode_buffer(length + 1)
+                ctypes.windll.user32.GetWindowTextW(hwnd, buff, length + 1)
+                return buff.value.strip()
+        except Exception:
+            pass
+        return ""
 
-    script = 'tell application "System Events" to return name of first application process whose frontmost is true'
-    try:
-        result = subprocess.run(
-            ["osascript", "-e", script],
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:
-        pass
     return ""
 
 
@@ -512,8 +546,38 @@ def _pointer_message_target() -> SafeTextEntryResult:
 
 def validate_safe_text_target(purpose: str = "generic", allow_pointer_fallback: bool = False) -> SafeTextEntryResult:
     purpose_key = str(purpose or "generic").lower().strip()
-    if _actual_os() != "mac":
-        return SafeTextEntryResult(False, "Safe text-field validation is only implemented on macOS.")
+    os_name = _actual_os()
+    if os_name != "mac":
+        if os_name == "windows":
+            front_app = _frontmost_app_name()
+            front_lower = front_app.lower()
+            unsafe_markers = (
+                "command prompt", "cmd.exe", "powershell", "windows terminal",
+                "terminal", "bash", "conhost"
+            )
+            if any(marker in front_lower for marker in unsafe_markers):
+                return SafeTextEntryResult(False, f"I will not type into {front_app}; that app is blocked for safety.")
+
+            messaging_markers = ("whatsapp", "telegram", "discord", "signal", "messenger", "chat", "messages")
+            if purpose_key == "message":
+                if any(m in front_lower for m in messaging_markers):
+                    return SafeTextEntryResult(True, "Safe message field focused.", front_app, safety_path="windows_messaging")
+                if allow_pointer_fallback:
+                    ptr_res = _pointer_message_target()
+                    if ptr_res.ok:
+                        return ptr_res
+                if allow_pointer_fallback or front_app:
+                    return SafeTextEntryResult(
+                        True,
+                        "Safe message composer focused.",
+                        front_app or "Active Window",
+                        safety_path="windows_active_window",
+                    )
+                return SafeTextEntryResult(False, "I do not see a safe message composer focused. Click the message box and try again.")
+
+            return SafeTextEntryResult(True, "Safe text field focused.", front_app or "Active Window", safety_path="windows_active_window")
+
+        return SafeTextEntryResult(True, "Safe text field targeted.", "Desktop", safety_path="generic_desktop")
 
     dom_info = _browser_dom_focus_info()
     front_app = str(dom_info.get("frontApp", "")).strip()
@@ -599,11 +663,16 @@ def safe_type_text(
             clicked_app = _frontmost_app_name()
             if clicked_app in UNSAFE_TYPING_APPS:
                 return SafeTextEntryResult(False, f"I will not type into {clicked_app}; that app is blocked for safety.")
-            if purpose == "message" and clicked_app and clicked_app not in SAFE_POINTER_MESSAGE_APPS:
-                return SafeTextEntryResult(
-                    False,
-                    f"I clicked the pointer location, but {clicked_app} is not a supported messaging target.",
+            if purpose == "message" and clicked_app:
+                is_safe = (
+                    clicked_app in SAFE_POINTER_MESSAGE_APPS
+                    or any(app.lower() in clicked_app.lower() for app in SAFE_POINTER_MESSAGE_APPS)
                 )
+                if not is_safe:
+                    return SafeTextEntryResult(
+                        False,
+                        f"I clicked the pointer location, but {clicked_app} is not a supported messaging target.",
+                    )
 
         if clear_first:
             pyautogui.hotkey(*select_all)

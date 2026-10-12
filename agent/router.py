@@ -45,6 +45,12 @@ _KEYWORDS: dict[str, tuple[str, ...]] = {
         "latest news", "summarize this article", "summarize this video",
         "what is", "who is", "sources", "citations",
     ),
+    "hermes": (
+        "hermes", "subagent", "subagents", "parallel work", "mixture of agents",
+        "moa", "docker container", "docker sandbox", "isolated docker",
+        "remote execution", "daytona", "modal sandbox", "vercel sandbox",
+        "mcp server", "cronjob", "self-improving", "skill generation",
+    ),
 }
 
 _COMPILED: dict[str, list[re.Pattern]] = {
