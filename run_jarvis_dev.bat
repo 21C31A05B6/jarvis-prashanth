@@ -49,6 +49,7 @@ if defined PYW_CMD (
 ) else (
   start "JARVIS To-Do & Task Scheduler" "%PY_CMD%" -m actions.todo_dialog
 )
+timeout /t 1 /nobreak >nul 2>&1
 
 echo [JARVIS] Starting interactive desktop agent...
 echo [JARVIS] Speak to JARVIS or use the desktop controls to give tasks.
