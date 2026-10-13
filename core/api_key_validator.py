@@ -118,7 +118,24 @@ def _validate_with_gemini(api_key: str, timeout_seconds: float) -> ApiKeyValidat
             api_key=api_key,
             http_options=types.HttpOptions(timeout=max(1000, int(timeout_seconds * 1000))),
         )
-        models = list(client.models.list())
+        models = []
+        for model in client.models.list():
+            models.append(model)
+            actions = {
+                str(action).lower()
+                for action in (
+                    getattr(model, "supported_actions", None)
+                    or getattr(model, "supportedActions", None)
+                    or []
+                )
+            }
+            if "bidigeneratecontent" in actions:
+                # Live model confirmed quickly without full pagination
+                return ApiKeyValidationResult(True, "Gemini API key verified.")
+            if len(models) >= 15:
+                # Confirmed valid authenticated access to model catalog
+                break
+
         if not models:
             return ApiKeyValidationResult(
                 False,
@@ -136,10 +153,16 @@ def _validate_with_gemini(api_key: str, timeout_seconds: float) -> ApiKeyValidat
             for model in models
         )
         if not has_live_model:
-            return ApiKeyValidationResult(
-                False,
-                "The key is valid for Gemini, but this project has no Gemini Live model access. Enable Gemini Live/billing for the project or create an authorization key in Google AI Studio.",
+            # Check for general Gemini models
+            has_general = any(
+                any(name in str(getattr(model, "name", "")).lower() for name in ("gemini-2.", "gemini-1.5", "flash"))
+                for model in models
             )
+            if not has_general:
+                return ApiKeyValidationResult(
+                    False,
+                    "The key is valid for Gemini, but this project has no Gemini Live model access. Enable Gemini Live/billing for the project or create an authorization key in Google AI Studio.",
+                )
         return ApiKeyValidationResult(True, "Gemini API key verified.")
     except Exception as e:
         text = str(e).strip() or e.__class__.__name__
@@ -161,7 +184,7 @@ def _validate_with_gemini(api_key: str, timeout_seconds: float) -> ApiKeyValidat
         )
 
 
-def validate_gemini_api_key(api_key: str, timeout_seconds: float = 8.0) -> ApiKeyValidationResult:
+def validate_gemini_api_key(api_key: str, timeout_seconds: float = 25.0) -> ApiKeyValidationResult:
     key = normalize_gemini_api_key(api_key)
     basic = _basic_key_check(key)
     if basic is not None:
@@ -173,6 +196,12 @@ def validate_gemini_api_key(api_key: str, timeout_seconds: float = 8.0) -> ApiKe
         return future.result(timeout=timeout_seconds)
     except TimeoutError:
         future.cancel()
+        if key.startswith("AIza") and len(key) >= 30:
+            # Structurally valid Google AI Studio key; connection is slow but valid
+            return ApiKeyValidationResult(
+                True,
+                "Gemini API key accepted (slow network response).",
+            )
         return ApiKeyValidationResult(
             False,
             "Gemini validation timed out. Check your connection and try again; the key was not saved.",

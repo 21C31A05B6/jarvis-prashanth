@@ -76,6 +76,11 @@ TODO_STORAGE_PATH = _BASE_DIR / "memory" / "todo_schedule.json"
 DEFAULT_EMAIL_RECIPIENT = "prashanthpogula24@gmail.com"
 _STORAGE_LOCK = threading.RLock()
 _SYSTEM = platform.system()
+_WIN_CREATION_FLAGS = (
+    subprocess.CREATE_NO_WINDOW
+    if _SYSTEM == "Windows" and hasattr(subprocess, "CREATE_NO_WINDOW")
+    else (0x08000000 if _SYSTEM == "Windows" else 0)
+)
 
 
 # ---------------------------------------------------------------------------
@@ -235,6 +240,7 @@ def speak_direct(message: str, player=None, speak_fn: Optional[Callable[[str], N
                 ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps_script],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                creationflags=_WIN_CREATION_FLAGS,
             )
             spoken = True
         except Exception as exc:
@@ -266,6 +272,7 @@ def speak_direct(message: str, player=None, speak_fn: Optional[Callable[[str], N
                     ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps_toast],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    creationflags=_WIN_CREATION_FLAGS,
                 )
             except Exception:
                 pass
@@ -506,6 +513,7 @@ def register_os_schedule(task: dict) -> bool:
             ["schtasks", "/Create", "/TN", task_name, "/XML", str(xml_path), "/F"],
             capture_output=True,
             text=True,
+            creationflags=_WIN_CREATION_FLAGS,
         )
         xml_path.unlink(missing_ok=True)
         if res.returncode == 0:
@@ -527,6 +535,7 @@ def remove_os_schedule(task_id: str) -> None:
             ["schtasks", "/Delete", "/TN", task_name, "/F"],
             capture_output=True,
             text=True,
+            creationflags=_WIN_CREATION_FLAGS,
         )
     except Exception:
         pass
@@ -540,15 +549,39 @@ def parse_task_string(raw_text: str) -> dict:
     """
     Parses natural language task inputs into structured parameters.
     Handles relative times ('in 15 minutes'), specific times ('at 4:30 PM', 'at 17:00'),
-    dates ('tomorrow', 'today', 'on 2026-10-15'), and cleans task prefixes.
+    dates ('tomorrow', 'today', 'on 2026-10-15'), delivery preferences (mail / direct),
+    and execution vs reminder intent.
     """
     text = (raw_text or "").strip()
     if not text:
-        return {"title": "", "due_date": None, "due_time": None, "description": ""}
+        return {
+            "title": "", "due_date": None, "due_time": None, "description": "",
+            "action_type": "reminder", "delivery_mode": "smart", "command": "",
+        }
+
+    # 1. Detect delivery preference
+    delivery_mode = "smart"  # "smart", "direct", "email"
+    if re.search(r"\b(?:by\s+mail|by\s+email|via\s+email|email\s+me|send\s+email|in\s+mail)\b", text, re.IGNORECASE):
+        delivery_mode = "email"
+        text = re.sub(r"\b(?:by\s+mail|by\s+email|via\s+email|email\s+me|send\s+email|in\s+mail)\b", "", text, flags=re.IGNORECASE)
+    elif re.search(r"\b(?:direct(?:ly)?|say\s+direct|by\s+voice|voice\s+direct|speak\s+direct)\b", text, re.IGNORECASE):
+        delivery_mode = "direct"
+        text = re.sub(r"\b(?:direct(?:ly)?|say\s+direct|by\s+voice|voice\s+direct|speak\s+direct)\b", "", text, flags=re.IGNORECASE)
+
+    # 2. Detect action_type (execute vs reminder)
+    action_type = "reminder"
+    exec_intent = re.search(
+        r"\b(?:jarvis\s+can\s+do|jarvis\s+do|jarvis\s+execute|jarvis\s+run|jarvis\s+open|open\s+|launch\s+|start\s+|run\s+|play\s+|execute\s+)\b",
+        text, re.IGNORECASE
+    )
+    if re.search(r"\b(?:remember\s+me|remind\s+me|remember|remind)\b", raw_text, re.IGNORECASE):
+        action_type = "reminder"
+    elif exec_intent:
+        action_type = "execute"
 
     # Strip conversational prefixes
     prefixes = (
-        r"^(?:please\s+)?(?:remind\s+me\s+to|add\s+to\s+todo|add\s+todo|schedule|create\s+task|task\s*:|todo\s*:)\s*",
+        r"^(?:please\s+)?(?:remind\s+me\s+to|remind\s+me|remember\s+me\s+to|remember\s+me|remember|remind|jarvis\s+can\s+do|jarvis\s+do|jarvis\s+please|jarvis\s*,?\s*|add\s+to\s+todo|add\s+todo|schedule|create\s+task|task\s*:|todo\s*:)\s*",
     )
     for p in prefixes:
         text = re.sub(p, "", text, flags=re.IGNORECASE).strip()
@@ -558,7 +591,7 @@ def parse_task_string(raw_text: str) -> dict:
     due_date = None
     due_time = None
 
-    # 1. Match relative time: "in X minutes/hours/mins"
+    # Match relative time: "in X minutes/hours/mins"
     rel_match = re.search(r"\bin\s+(\d+)\s*(mins?|minutes?|hours?|hrs?)\b", text, re.IGNORECASE)
     if rel_match:
         qty = int(rel_match.group(1))
@@ -569,7 +602,7 @@ def parse_task_string(raw_text: str) -> dict:
             target_dt = now + timedelta(minutes=qty)
         text = text[:rel_match.start()] + text[rel_match.end():]
 
-    # 2. Match date: "tomorrow", "today", "on YYYY-MM-DD"
+    # Match date: "tomorrow", "today", "on YYYY-MM-DD"
     if re.search(r"\btomorrow\b", text, re.IGNORECASE):
         target_date_obj = now + timedelta(days=1)
         due_date = target_date_obj.strftime("%Y-%m-%d")
@@ -583,14 +616,12 @@ def parse_task_string(raw_text: str) -> dict:
             due_date = date_match.group(1)
             text = text[:date_match.start()] + text[date_match.end():]
 
-    # 3. Match specific time: "at 5:30 PM", "at 5pm", "at 17:30", "at 9 am"
+    # Match specific time: "at 5:30 PM", "at 5pm", "at 17:30", "at 9 am"
     time_match = re.search(r"\bat\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\b", text, re.IGNORECASE)
     if time_match:
         time_str = time_match.group(1).strip()
         text = text[:time_match.start()] + text[time_match.end():]
-        # Normalize time_str
         try:
-            # Try formats
             for fmt in ("%I:%M %p", "%I:%M%p", "%I %p", "%I%p", "%H:%M", "%H"):
                 try:
                     parsed_t = datetime.strptime(time_str.upper(), fmt).time()
@@ -605,7 +636,6 @@ def parse_task_string(raw_text: str) -> dict:
         due_date = target_dt.strftime("%Y-%m-%d")
         due_time = target_dt.strftime("%H:%M")
     elif due_time and not due_date:
-        # Check if due_time today has passed
         try:
             t_obj = datetime.strptime(due_time, "%H:%M").time()
             dt_today = datetime.combine(now.date(), t_obj)
@@ -624,11 +654,16 @@ def parse_task_string(raw_text: str) -> dict:
     if not clean_title:
         clean_title = "Scheduled Task"
 
+    command = clean_title if action_type == "execute" else ""
+
     return {
         "title": clean_title,
         "due_date": due_date,
         "due_time": due_time,
         "description": f"Scheduled task: {clean_title}",
+        "action_type": action_type,
+        "delivery_mode": delivery_mode,
+        "command": command,
     }
 
 
@@ -641,6 +676,9 @@ def add_task_from_text(raw_text: str, until_done: bool = True) -> dict:
         due_date=parsed.get("due_date"),
         due_time=parsed.get("due_time"),
         until_done=until_done,
+        action_type=parsed.get("action_type", "reminder"),
+        command=parsed.get("command", ""),
+        delivery_mode=parsed.get("delivery_mode", "smart"),
     )
 
 
@@ -652,6 +690,7 @@ def add_task(
     until_done: bool = True,
     action_type: str = "reminder",
     command: str = "",
+    delivery_mode: str = "smart",
     retry_interval_minutes: int = 15,
     email_recipient: str = DEFAULT_EMAIL_RECIPIENT,
 ) -> dict:
@@ -670,7 +709,6 @@ def add_task(
         except Exception:
             pass
     elif due_time and not due_date:
-        # Default to today (or tomorrow if time already passed)
         try:
             today_str = now.strftime("%Y-%m-%d")
             dt = datetime.strptime(f"{today_str} {due_time}", "%Y-%m-%d %H:%M")
@@ -687,6 +725,7 @@ def add_task(
         "description": description.strip(),
         "action_type": action_type,
         "command": command.strip(),
+        "delivery_mode": delivery_mode or "smart",
         "due_date": due_date or now.strftime("%Y-%m-%d"),
         "due_time": due_time or now.strftime("%H:%M"),
         "due_iso": due_iso or now.isoformat(),
@@ -829,49 +868,257 @@ def execute_or_notify_task(
     desc = task.get("description", "")
     recipient = task.get("email_recipient", DEFAULT_EMAIL_RECIPIENT)
 
-    # If action_type == "execute" and command is given, run the command
-    if task.get("action_type") == "execute" and task.get("command"):
+def execute_jarvis_task(task: dict, player=None, speak_fn=None) -> tuple[bool, str]:
+    """
+    Executes a task autonomously when its due time arrives.
+    Supports system commands, app opening, URLs, media playback, and custom JARVIS actions.
+    """
+    title = (task.get("title") or "").strip()
+    command = (task.get("command") or "").strip()
+    target = command or title
+
+    if not target:
+        return False, "No command or task title specified"
+
+    # Enforce operational range policy learned from NeonDB PostgreSQL conversations
+    try:
+        from memory.postgres_store import is_task_within_range, log_conversation_turn
+        allowed, reason = is_task_within_range(title, command=command)
+        if not allowed:
+            print(f"[TodoScheduler] ⚠️ Task blocked by operational range: {reason}")
+            log_conversation_turn(
+                "todo_scheduler",
+                "task_execution",
+                f"Blocked Task: {title} | Command: {command}",
+                tool_name="todo_scheduler",
+                tool_result=f"Blocked: {reason}",
+                source="todo_scheduler",
+            )
+            return False, f"Task blocked by operational range constraint: {reason}"
+    except Exception as exc:
+        print(f"[TodoScheduler] ⚠️ Range check warning: {exc}")
+
+    # 1. Direct explicit shell command if flagged
+    if command and command != title:
         try:
-            cmd = task["command"]
-            print(f"[TodoScheduler] [EXEC] Executing automated command: {cmd}")
-            proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+            print(f"[TodoScheduler] [EXEC] Running shell command: {command}")
+            proc = subprocess.run(
+                command, shell=True, capture_output=True, text=True, timeout=120,
+                creationflags=_WIN_CREATION_FLAGS,
+            )
             if proc.returncode == 0:
-                task["status"] = "completed"
-                task["completed_at"] = now.isoformat()
-                output_summary = (proc.stdout or "Command finished successfully").strip()[:300]
-                task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Command executed: {output_summary}")
-                _save_tasks_raw(tasks)
-                remove_os_schedule(task_id)
-
-                announcement = f"Sir, I have successfully executed your task: {title}."
-                if online:
-                    speak_direct(announcement, player=player, speak_fn=speak_fn)
-                else:
-                    send_task_email(task, recipient=recipient, custom_subject=f"[J.A.R.V.I.S Task Completed] {title}")
-
-                return {"success": True, "completed": True, "message": announcement}
+                out = (proc.stdout or "Command finished successfully").strip()[:300]
+                return True, out
             else:
-                err_msg = (proc.stderr or proc.stdout).strip()[:300]
-                task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Command failed: {err_msg}")
+                err = (proc.stderr or proc.stdout).strip()[:300]
+                return False, f"Command failed: {err}"
         except Exception as exc:
-            task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Execution error: {exc}")
+            return False, f"Execution exception: {exc}"
 
-    # Standard Reminder / Action Check
-    if online:
-        # User is ONLINE: directly say to user
-        spoken_msg = f"Sir, it is time for your scheduled task: {title}. {desc}".strip()
-        speak_direct(spoken_msg, player=player, speak_fn=speak_fn)
-        task["last_notification_mode"] = "spoken"
-        task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Spoken directly to user ({presence_reason})")
-        result_info["mode"] = "spoken"
-        result_info["message"] = f"Spoken directly to user: {spoken_msg}"
-    else:
-        # User is OFFLINE: send email to prashanthpogula24@gmail.com
+    # 2. Natural language action resolution
+    clean_action = re.sub(
+        r"^(?:jarvis\s*,?\s*|please\s+|can\s+you\s+|jarvis\s+can\s+do\s+|do\s+task\s+|do\s+|execute\s+)",
+        "", target, flags=re.IGNORECASE
+    ).strip()
+
+    # Case A: URL
+    if clean_action.startswith("http://") or clean_action.startswith("https://"):
+        try:
+            import webbrowser
+            webbrowser.open(clean_action)
+            return True, f"Opened URL: {clean_action}"
+        except Exception as exc:
+            return False, f"Failed to open URL: {exc}"
+
+    # Case B: "open <app/website>" or "launch <app>"
+    open_match = re.match(r"^(?:open|launch|start)\s+(.+)$", clean_action, re.IGNORECASE)
+    if open_match:
+        app_or_site = open_match.group(1).strip()
+        common_sites = {
+            "youtube": "https://www.youtube.com",
+            "google": "https://www.google.com",
+            "github": "https://www.github.com",
+            "gmail": "https://mail.google.com",
+            "chatgpt": "https://chatgpt.com",
+            "reddit": "https://www.reddit.com",
+            "twitter": "https://twitter.com",
+            "x": "https://x.com",
+        }
+        if app_or_site.lower() in common_sites:
+            try:
+                import webbrowser
+                webbrowser.open(common_sites[app_or_site.lower()])
+                return True, f"Opened {app_or_site.title()} in browser"
+            except Exception as exc:
+                return False, f"Failed to open site: {exc}"
+
+        # Try open_app
+        try:
+            from actions.open_app import open_app
+            res = open_app(app_or_site)
+            is_ok = getattr(res, "success", True) if res is not None else True
+            if isinstance(res, dict):
+                is_ok = res.get("success", True)
+            if is_ok:
+                return True, f"Launched application: {app_or_site}"
+        except Exception:
+            pass
+
+        # Windows start fallback
+        if _SYSTEM == "Windows":
+            try:
+                proc = subprocess.run(
+                    f'start "" "{app_or_site}"', shell=True, capture_output=True, text=True,
+                    creationflags=_WIN_CREATION_FLAGS,
+                )
+                if proc.returncode == 0:
+                    return True, f"Launched {app_or_site}"
+            except Exception:
+                pass
+
+    # Case C: "play <music/video/song>"
+    play_match = re.match(r"^(?:play|listen\s+to)\s+(.+)$", clean_action, re.IGNORECASE)
+    if play_match:
+        media_query = play_match.group(1).strip()
+        try:
+            import webbrowser
+            import urllib.parse
+            url = f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(media_query)}"
+            webbrowser.open(url)
+            return True, f"Playing '{media_query}' on YouTube"
+        except Exception as exc:
+            return False, f"Failed to play media: {exc}"
+
+    # Case D: "run <cmd>" or system shell
+    run_match = re.match(r"^(?:run|exec|execute)\s+(.+)$", clean_action, re.IGNORECASE)
+    if run_match:
+        cmd_str = run_match.group(1).strip()
+        try:
+            proc = subprocess.run(
+                cmd_str, shell=True, capture_output=True, text=True, timeout=120,
+                creationflags=_WIN_CREATION_FLAGS,
+            )
+            out = (proc.stdout or "Command finished successfully").strip()[:300]
+            return True, out
+        except Exception as exc:
+            return False, f"Command execution error: {exc}"
+
+    # Case E: Generic application lookup via open_app
+    try:
+        from actions.open_app import open_app
+        res = open_app(clean_action)
+        is_ok = getattr(res, "success", True) if res is not None else True
+        if isinstance(res, dict):
+            is_ok = res.get("success", True)
+        if is_ok:
+            return True, f"Executed action: {clean_action}"
+    except Exception:
+        pass
+
+    # Fallback shell command execution
+    try:
+        proc = subprocess.run(
+            target, shell=True, capture_output=True, text=True, timeout=60,
+            creationflags=_WIN_CREATION_FLAGS,
+        )
+        if proc.returncode == 0:
+            return True, (proc.stdout or "Task executed successfully").strip()[:300]
+    except Exception:
+        pass
+
+    return False, f"Could not determine execution method for: {target}"
+
+
+def execute_or_notify_task(
+    task_id: str,
+    player=None,
+    speak_fn: Optional[Callable[[str], None]] = None,
+    force: bool = False,
+) -> dict:
+    """
+    Core executor:
+    1. If task is an execution task ('jarvis can do that task' / 'open app' / command):
+       JARVIS autonomously executes the task itself!
+    2. If task is a reminder ('remember me'):
+       - If user entered 'by mail': emails prashanthpogula24@gmail.com
+       - If user entered 'direct': speaks directly out loud
+       - Smart default: speaks direct if user is online, emails if offline!
+    3. If until_done=True and not completed:
+       Reschedules retry automatically.
+    """
+    tasks = _load_tasks_raw()
+    task = None
+    for t in tasks:
+        if t["task_id"] == task_id:
+            task = t
+            break
+
+    if not task:
+        return {"success": False, "error": f"Task {task_id} not found"}
+
+    if task.get("status") == "completed" and not force:
+        return {"success": True, "message": "Task already completed"}
+
+    now = datetime.now()
+    online, presence_reason = is_user_online()
+    result_info = {}
+
+    title = task["title"]
+    desc = task.get("description", "")
+    recipient = task.get("email_recipient", DEFAULT_EMAIL_RECIPIENT)
+    action_type = task.get("action_type", "reminder")
+    delivery_mode = task.get("delivery_mode", "smart")
+
+    # 1. Autonomous JARVIS Execution Mode
+    if action_type == "execute" or task.get("command"):
+        success, exec_msg = execute_jarvis_task(task, player=player, speak_fn=speak_fn)
+        if success:
+            task["status"] = "completed"
+            task["completed_at"] = now.isoformat()
+            task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Autonomously executed: {exec_msg}")
+            _save_tasks_raw(tasks)
+            remove_os_schedule(task_id)
+
+            announcement = f"Sir, I have successfully executed your task: {title}."
+            if delivery_mode == "email":
+                send_task_email(task, recipient=recipient, custom_subject=f"[J.A.R.V.I.S Task Completed] {title}")
+            elif delivery_mode == "direct" or online:
+                speak_direct(announcement, player=player, speak_fn=speak_fn)
+            else:
+                send_task_email(task, recipient=recipient, custom_subject=f"[J.A.R.V.I.S Task Completed] {title}")
+
+            return {"success": True, "completed": True, "message": announcement, "details": exec_msg}
+        else:
+            task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Autonomous execution attempt failed: {exec_msg}")
+
+    # 2. Reminder Mode ("remember me")
+    if delivery_mode == "email":
         ok, email_msg = send_task_email(task, recipient=recipient, player=player)
         task["last_notification_mode"] = "emailed"
-        task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Emailed to {recipient} ({presence_reason})")
+        task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Emailed reminder to {recipient} (requested via email)")
         result_info["mode"] = "emailed"
         result_info["message"] = f"Dispatched email to {recipient}: {email_msg}"
+    elif delivery_mode == "direct":
+        spoken_msg = f"Sir, reminder for your scheduled task: {title}. {desc}".strip()
+        speak_direct(spoken_msg, player=player, speak_fn=speak_fn)
+        task["last_notification_mode"] = "spoken"
+        task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Spoken directly to user (requested direct voice)")
+        result_info["mode"] = "spoken"
+        result_info["message"] = f"Spoken directly to user: {spoken_msg}"
+    else:  # "smart" (direct voice if online, email if offline)
+        if online:
+            spoken_msg = f"Sir, it is time for your scheduled task: {title}. {desc}".strip()
+            speak_direct(spoken_msg, player=player, speak_fn=speak_fn)
+            task["last_notification_mode"] = "spoken"
+            task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Spoken directly to user ({presence_reason})")
+            result_info["mode"] = "spoken"
+            result_info["message"] = f"Spoken directly to user: {spoken_msg}"
+        else:
+            ok, email_msg = send_task_email(task, recipient=recipient, player=player)
+            task["last_notification_mode"] = "emailed"
+            task["history"].append(f"{now.strftime('%Y-%m-%d %H:%M:%S')} Emailed to {recipient} ({presence_reason})")
+            result_info["mode"] = "emailed"
+            result_info["message"] = f"Dispatched email to {recipient}: {email_msg}"
 
     task["last_run_at"] = now.isoformat()
     task["retry_count"] = task.get("retry_count", 0) + 1

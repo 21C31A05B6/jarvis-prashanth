@@ -52,6 +52,7 @@ def _launch_pyqt_dialog(parent_app=None):
     from PyQt6.QtWidgets import (
         QApplication,
         QCheckBox,
+        QComboBox,
         QDialog,
         QFrame,
         QHBoxLayout,
@@ -189,13 +190,31 @@ def _launch_pyqt_dialog(parent_app=None):
 
             entry_row = QHBoxLayout()
             self.task_input = QLineEdit()
-            self.task_input.setPlaceholderText("Type a task (e.g. 'Project status review at 5:00 PM', 'Call doctor tomorrow at 10am')...")
+            self.task_input.setPlaceholderText("Type a task (e.g. 'open chrome at 5pm', 'remember me to review budget tomorrow', 'play lofi at 9pm')...")
             self.task_input.returnPressed.connect(self._add_task_action)
             entry_row.addWidget(self.task_input, stretch=1)
 
             add_btn = QPushButton("+ ADD TASK")
             add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             add_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #0088cc;
+                    color: #ffffff;
+                    border: 1px solid #00aaff;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    padding: 9px 16px;
+                }
+                QPushButton:hover {
+                    background-color: #00aaff;
+                }
+            """)
+            add_btn.clicked.connect(self._add_task_action)
+            entry_row.addWidget(add_btn)
+
+            ok_top_btn = QPushButton("▶ OK — START JARVIS")
+            ok_top_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            ok_top_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #00d2ff;
                     color: #060b13;
@@ -208,22 +227,22 @@ def _launch_pyqt_dialog(parent_app=None):
                     background-color: #70e6ff;
                 }
             """)
-            add_btn.clicked.connect(self._add_task_action)
-            entry_row.addWidget(add_btn)
+            ok_top_btn.clicked.connect(self._ok_and_start_jarvis)
+            entry_row.addWidget(ok_top_btn)
             ib_lay.addLayout(entry_row)
 
-            # Options row: Time input & until done checkbox
+            # Options row 1: Time & Recurrence
             opts_row = QHBoxLayout()
-            time_lbl = QLabel("Due Time (optional):")
+            time_lbl = QLabel("Due Time:")
             time_lbl.setStyleSheet("font-size: 11px; color: #7f9eb2;")
             opts_row.addWidget(time_lbl)
 
             self.time_input = QLineEdit()
-            self.time_input.setPlaceholderText("e.g. 17:30 or 5:00 PM (leave blank to auto-detect)")
+            self.time_input.setPlaceholderText("e.g. 17:30, 5:00 PM, or in 15 mins (blank to auto-detect)")
             self.time_input.setFixedWidth(240)
             opts_row.addWidget(self.time_input)
 
-            opts_row.addSpacing(16)
+            opts_row.addSpacing(12)
 
             self.until_done_chk = QCheckBox("Track persistently until done")
             self.until_done_chk.setChecked(True)
@@ -232,6 +251,67 @@ def _launch_pyqt_dialog(parent_app=None):
 
             opts_row.addStretch()
             ib_lay.addLayout(opts_row)
+
+            # Options row 2: Action Type & Delivery Mode
+            opts_row2 = QHBoxLayout()
+            mode_lbl = QLabel("Action Mode:")
+            mode_lbl.setStyleSheet("font-size: 11px; color: #7f9eb2;")
+            opts_row2.addWidget(mode_lbl)
+
+            self.type_combo = QComboBox()
+            self.type_combo.addItems([
+                "⚡ Auto-Detect (Natural Language)",
+                "🤖 JARVIS Auto-Execute (JARVIS Does It)",
+                "🔔 Remember Me (Voice & Email Alert)",
+            ])
+            self.type_combo.setStyleSheet("""
+                QComboBox {
+                    background-color: #0b1524;
+                    color: #ffffff;
+                    border: 1px solid #1e3a5f;
+                    border-radius: 6px;
+                    padding: 5px 10px;
+                    font-size: 11px;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: #091322;
+                    color: #ffffff;
+                    selection-background-color: #1e3a5f;
+                }
+            """)
+            opts_row2.addWidget(self.type_combo)
+
+            opts_row2.addSpacing(14)
+
+            deliv_lbl = QLabel("Delivery:")
+            deliv_lbl.setStyleSheet("font-size: 11px; color: #7f9eb2;")
+            opts_row2.addWidget(deliv_lbl)
+
+            self.deliv_combo = QComboBox()
+            self.deliv_combo.addItems([
+                "Smart (Direct Voice if Online, Email if Offline)",
+                "Direct Voice Aloud Only",
+                "Email Only (to prashanthpogula24@gmail.com)",
+            ])
+            self.deliv_combo.setStyleSheet("""
+                QComboBox {
+                    background-color: #0b1524;
+                    color: #ffffff;
+                    border: 1px solid #1e3a5f;
+                    border-radius: 6px;
+                    padding: 5px 10px;
+                    font-size: 11px;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: #091322;
+                    color: #ffffff;
+                    selection-background-color: #1e3a5f;
+                }
+            """)
+            opts_row2.addWidget(self.deliv_combo)
+
+            opts_row2.addStretch()
+            ib_lay.addLayout(opts_row2)
 
             main_lay.addWidget(input_box)
 
@@ -279,18 +359,37 @@ def _launch_pyqt_dialog(parent_app=None):
 
             # --- Footer ---
             footer = QHBoxLayout()
-            hint_lbl = QLabel(f"Offline recipient: {DEFAULT_EMAIL_RECIPIENT}  •  Saved in memory/todo_schedule.json")
+            hint_lbl = QLabel(f"Offline email: {DEFAULT_EMAIL_RECIPIENT}  •  Tasks remembered in background")
             hint_lbl.setStyleSheet("font-size: 10px; color: #4e6e84;")
             footer.addWidget(hint_lbl)
             footer.addStretch()
 
-            close_btn = QPushButton("Close")
+            start_btn = QPushButton("▶ OK — START JARVIS DESKTOP AGENT")
+            start_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            start_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #00d2ff;
+                    color: #060b13;
+                    border: 1px solid #70e6ff;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    font-size: 12px;
+                    padding: 8px 22px;
+                }
+                QPushButton:hover {
+                    background-color: #70e6ff;
+                }
+            """)
+            start_btn.clicked.connect(self._ok_and_start_jarvis)
+            footer.addWidget(start_btn)
+
+            close_btn = QPushButton("Skip / Close")
             close_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #14243b;
                     color: #a4c4d9;
                     border: 1px solid #1e3a5f;
-                    padding: 6px 14px;
+                    padding: 8px 14px;
                 }
                 QPushButton:hover {
                     background-color: #1e3a5f;
@@ -312,7 +411,7 @@ def _launch_pyqt_dialog(parent_app=None):
             if not raw_text:
                 self.feedback_lbl.setText("Please enter a task name.")
                 self.feedback_lbl.setStyleSheet("font-size: 11px; color: #ff5555;")
-                return
+                return None
 
             manual_time = self.time_input.text().strip()
             parsed = parse_task_string(raw_text)
@@ -321,21 +420,52 @@ def _launch_pyqt_dialog(parent_app=None):
             due_time = manual_time or parsed.get("due_time")
             desc = parsed.get("description") or f"Task: {title}"
 
+            # Check explicit combo box choices
+            selected_type_idx = self.type_combo.currentIndex()
+            if selected_type_idx == 1:
+                action_type = "execute"
+            elif selected_type_idx == 2:
+                action_type = "reminder"
+            else:
+                action_type = parsed.get("action_type", "reminder")
+
+            selected_deliv_idx = self.deliv_combo.currentIndex()
+            if selected_deliv_idx == 1:
+                delivery_mode = "direct"
+            elif selected_deliv_idx == 2:
+                delivery_mode = "email"
+            else:
+                delivery_mode = parsed.get("delivery_mode", "smart")
+
+            command = parsed.get("command", "")
+            if action_type == "execute" and not command:
+                command = title
+
             task = add_task(
                 title=title,
                 description=desc,
                 due_date=due_date,
                 due_time=due_time,
                 until_done=self.until_done_chk.isChecked(),
+                action_type=action_type,
+                command=command,
+                delivery_mode=delivery_mode,
             )
 
             self.task_input.clear()
             self.time_input.clear()
+            mode_tag = "🤖 [AUTO-EXECUTE]" if action_type == "execute" else "🔔 [REMINDER]"
             self.feedback_lbl.setText(
-                f"[OK] Added '{task['title']}' for {task['due_date']} at {task['due_time']}."
+                f"[OK] {mode_tag} Scheduled '{task['title']}' for {task['due_date']} at {task['due_time']}."
             )
             self.feedback_lbl.setStyleSheet("font-size: 11px; color: #00ff88;")
             self.reload_tasks()
+            return task
+
+        def _ok_and_start_jarvis(self):
+            if self.task_input.text().strip():
+                self._add_task_action()
+            self.accept()
 
         def reload_tasks(self):
             # Clear existing items
@@ -392,12 +522,16 @@ def _launch_pyqt_dialog(parent_app=None):
             title_row.addWidget(title_lbl)
 
             # Mode pill
-            mode_lbl = QLabel("Voice & Email" if t.get("until_done") else "One-Time")
-            mode_lbl.setStyleSheet("""
+            is_exec = t.get("action_type") == "execute"
+            deliv = t.get("delivery_mode", "smart").upper()
+            mode_txt = "🤖 AUTO-EXECUTE" if is_exec else f"🔔 REMIND ({deliv})"
+            mode_color = "#00d2ff" if is_exec else ("#00ff88" if deliv != "EMAIL" else "#ffaa00")
+            mode_lbl = QLabel(mode_txt)
+            mode_lbl.setStyleSheet(f"""
                 font-size: 9px;
-                color: #00d2ff;
+                color: {mode_color};
                 padding: 1px 6px;
-                border: 1px solid #00d2ff44;
+                border: 1px solid {mode_color}44;
                 border-radius: 8px;
             """)
             title_row.addWidget(mode_lbl)
@@ -613,9 +747,15 @@ def _launch_tkinter_dialog():
             delete_task(t["task_id"])
             refresh_list()
 
+    def do_start_jarvis():
+        if task_var.get().strip():
+            do_add()
+        root.destroy()
+
     tk.Button(btn_frame, text="✓ Mark Done", bg="#00aa66", fg="#ffffff", command=do_done).pack(side=tk.LEFT, padx=4)
     tk.Button(btn_frame, text="✕ Delete", bg="#aa3344", fg="#ffffff", command=do_delete).pack(side=tk.LEFT, padx=4)
     tk.Button(btn_frame, text="↺ Refresh", bg="#1e3a5f", fg="#d8ecf8", command=refresh_list).pack(side=tk.LEFT, padx=4)
+    tk.Button(btn_frame, text="▶ OK — START JARVIS", bg="#00d2ff", fg="#060b13", font=("Segoe UI", 9, "bold"), command=do_start_jarvis).pack(side=tk.RIGHT, padx=6)
     tk.Button(btn_frame, text="Close", bg="#14243b", fg="#d8ecf8", command=root.destroy).pack(side=tk.RIGHT, padx=4)
 
     refresh_list()

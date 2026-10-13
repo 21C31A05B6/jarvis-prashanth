@@ -43,18 +43,19 @@ if exist "%ROOT%venv\Scripts\pythonw.exe" (
   if not errorlevel 1 set "PYW_CMD=pythonw"
 )
 
-echo [JARVIS] Launching To-Do ^& Task Scheduler Window...
+echo [JARVIS] Opening To-Do ^& Task Scheduler Window...
+echo [JARVIS] Enter your tasks and click 'OK - START JARVIS' to proceed...
 if defined PYW_CMD (
-  start "" "%PYW_CMD%" -m actions.todo_dialog
+  start /wait "" "%PYW_CMD%" -m actions.todo_dialog
 ) else (
-  start "JARVIS To-Do & Task Scheduler" "%PY_CMD%" -m actions.todo_dialog
+  "%PY_CMD%" -m actions.todo_dialog
 )
-timeout /t 1 /nobreak >nul 2>&1
 
 echo [JARVIS] Starting interactive desktop agent...
 echo [JARVIS] Speak to JARVIS or use the desktop controls to give tasks.
 echo [JARVIS] Press Ctrl+C in this window to stop the agent.
 echo.
+set "JARVIS_SKIP_TODO_PROMPT=1"
 "%PY_CMD%" main.py
 set "EXIT_CODE=%ERRORLEVEL%"
 echo.

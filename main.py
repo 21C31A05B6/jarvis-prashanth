@@ -1738,6 +1738,7 @@ class JarvisLive:
         self.tool_declarations = get_tool_declarations(cloud_safe=self.cloud_safe)
         from agent.workflow_recorder import WorkflowRecorder
         self.workflow_recorder = WorkflowRecorder()
+        self.session_id     = f"jarvis_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
         self.session        = None
         self.audio_in_queue = None
         self.out_queue      = None
@@ -1799,6 +1800,11 @@ class JarvisLive:
             turns={"parts": [{"text": outgoing_text}]},
             turn_complete=True,
         )
+        try:
+            from memory.postgres_store import log_conversation_turn
+            log_conversation_turn(getattr(self, "session_id", "live_session"), "user", outgoing_text, source="text_input")
+        except Exception:
+            pass
         return True
 
     async def send_audio_chunk(
@@ -2044,6 +2050,15 @@ class JarvisLive:
         if mem_str:
             parts.append(mem_str)
 
+        # Inject user operational range & constraints analyzed from NeonDB PostgreSQL
+        try:
+            from memory.postgres_store import get_operational_range_context
+            range_ctx = get_operational_range_context()
+            if range_ctx:
+                parts.append(range_ctx)
+        except Exception as exc:
+            print(f"[JARVIS] ⚠️ Operational range context injection error: {exc}")
+
         # Inject active tasks and recent task history for context continuity
         try:
             from agent.task_queue import get_queue
@@ -2137,6 +2152,16 @@ class JarvisLive:
                 id=fc.id,
                 name=name,
                 response={"result": qa_block_message(qa_decision)},
+            )
+
+        from memory.postgres_store import is_task_within_range
+        allowed, reason = is_task_within_range(f"{name} {json.dumps(args) if isinstance(args, dict) else str(args)}")
+        if not allowed:
+            print(f"[JARVIS] ⛔ Tool blocked by operational range: {reason}")
+            return types.FunctionResponse(
+                id=fc.id,
+                name=name,
+                response={"result": f"Action blocked: Exceeds allowed operational range ({reason})"},
             )
 
         print(f"[JARVIS] 🔧 {name}  {args}")
@@ -2461,6 +2486,18 @@ class JarvisLive:
             self.ui.set_state("LISTENING")
 
         print(f"[JARVIS] 📤 {name} → {str(result)[:80]}")
+        try:
+            from memory.postgres_store import log_conversation_turn
+            log_conversation_turn(
+                getattr(self, "session_id", "live_session"),
+                "tool",
+                f"Tool executed: {name}",
+                tool_name=name,
+                tool_args=json.dumps(args) if isinstance(args, dict) else str(args),
+                tool_result=str(result)[:2000],
+            )
+        except Exception:
+            pass
         return types.FunctionResponse(
             id=fc.id, name=name,
             response={"result": result}
@@ -2605,11 +2642,21 @@ class JarvisLive:
                                 ):
                                     self._queue_self_quit_after_farewell()
                                 self.ui.write_log(f"You: {full_in}")
+                                try:
+                                    from memory.postgres_store import log_conversation_turn
+                                    log_conversation_turn(getattr(self, "session_id", "live_session"), "user", full_in, source="voice")
+                                except Exception:
+                                    pass
                             in_buf = []
 
                             full_out = " ".join(out_buf).strip()
                             if full_out:
                                 self.ui.write_log(f"Jarvis: {full_out}")
+                                try:
+                                    from memory.postgres_store import log_conversation_turn
+                                    log_conversation_turn(getattr(self, "session_id", "live_session"), "jarvis", full_out, source="voice")
+                                except Exception:
+                                    pass
                             if (
                                 getattr(self, "_pending_self_quit", False)
                                 and (full_out or turn_had_audio)
@@ -2843,17 +2890,19 @@ def main():
             print("[JARVIS] Wake word not detected. Exiting.")
             return
 
-        try:
-            py_bin = sys.executable
-            if "pythonw.exe" in py_bin.lower():
-                py_bin = py_bin.lower().replace("pythonw.exe", "python.exe")
-            subprocess.Popen([py_bin, "-m", "actions.todo_dialog"])
-        except Exception:
-            pass
     else:
         # Normal startup: clap gate
         if not wait_for_startup_claps():
             return
+
+    # Check and prompt To-Do / Task Scheduler if not already handled
+    if not wake_word_only and os.environ.get("JARVIS_SKIP_TODO_PROMPT") != "1":
+        try:
+            print("[JARVIS] 📋 Prompting To-Do & Task Scheduler before starting interface...")
+            from actions.todo_dialog import open_todo_window
+            open_todo_window()
+        except Exception as exc:
+            print(f"[JARVIS] [WARN] Startup todo dialog exception: {exc}")
 
     print("[JARVIS] ⚡ Powering up the interface...")
     try:
@@ -2868,6 +2917,14 @@ def main():
         voice_name = _load_voice_name()
         jarvis = JarvisLive(ui, voice_name)
         ui.on_quit_requested = jarvis.request_shutdown
+
+        # Start Background To-Do & Task Scheduler Daemon
+        try:
+            from actions.todo_scheduler import start_scheduler_daemon
+            start_scheduler_daemon(player=ui, speak_fn=None, interval_seconds=15)
+            ui.write_log("SYS: Background task scheduler daemon active.")
+        except Exception as exc:
+            print(f"[JARVIS] [WARN] Could not initialize scheduler daemon: {exc}")
 
         # Trial/keyword runtime limiting: set via env `JARVIS_TRIAL_KEYWORD`.
         # If set to any non-empty string, jarvis will run for 3600 seconds (1 hour).

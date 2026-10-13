@@ -25,6 +25,11 @@ if exist ".env" (
   )
 )
 
+echo [JARVIS] Opening To-Do ^& Task Scheduler Window...
+echo [JARVIS] Enter your tasks and click 'OK - START JARVIS' to proceed...
+"%PY_CMD%" -m actions.todo_dialog
+
 echo [JARVIS] Starting JARVIS AI Core using %PY_CMD%...
+set "JARVIS_SKIP_TODO_PROMPT=1"
 "%PY_CMD%" main.py
 pause

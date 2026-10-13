@@ -1851,6 +1851,13 @@ class PresenceSystem(QObject):
             self._presence_tmr.start()
         else:
             self._presence_tmr.stop()
+_WIN_CREATION_FLAGS = (
+    subprocess.CREATE_NO_WINDOW
+    if _OS == "Windows" and hasattr(subprocess, "CREATE_NO_WINDOW")
+    else (0x08000000 if _OS == "Windows" else 0)
+)
+
+
 class _SysMetrics:
     def __init__(self):
         self.cpu  = 0.0
@@ -1858,6 +1865,8 @@ class _SysMetrics:
         self.net  = 0.0   
         self.gpu  = -1.0  
         self.tmp  = -1.0  
+        self._has_nvidia = (_OS != "Darwin")
+        self._wmi_temp_supported = (_OS == "Windows")
         self._lock = threading.Lock()
         self._last_net = psutil.net_io_counters()
         self._last_net_t = time.time()
@@ -1902,18 +1911,22 @@ class _SysMetrics:
 
     def _get_gpu(self) -> float:
         # NVIDIA
-        try:
-            r = subprocess.run(
-                ["nvidia-smi", "--query-gpu=utilization.gpu",
-                 "--format=csv,noheader,nounits"],
-                capture_output=True, text=True, timeout=2
-            )
-            if r.returncode == 0:
-                vals = [float(v.strip()) for v in r.stdout.strip().split("\n") if v.strip()]
-                if vals:
-                    return sum(vals) / len(vals)
-        except Exception:
-            pass
+        if getattr(self, "_has_nvidia", True):
+            try:
+                r = subprocess.run(
+                    ["nvidia-smi", "--query-gpu=utilization.gpu",
+                     "--format=csv,noheader,nounits"],
+                    capture_output=True, text=True, timeout=2,
+                    creationflags=_WIN_CREATION_FLAGS if _OS == "Windows" else 0,
+                )
+                if r.returncode == 0:
+                    vals = [float(v.strip()) for v in r.stdout.strip().split("\n") if v.strip()]
+                    if vals:
+                        return sum(vals) / len(vals)
+                else:
+                    self._has_nvidia = False
+            except Exception:
+                self._has_nvidia = False
 
         # AMD (Linux)
         if _OS == "Linux":
@@ -2020,18 +2033,21 @@ class _SysMetrics:
             except Exception:
                 pass
 
-        if _OS == "Windows":
+        if _OS == "Windows" and getattr(self, "_wmi_temp_supported", True):
             try:
                 r = subprocess.run(
-                    ["powershell", "-Command",
+                    ["powershell", "-NoProfile", "-Command",
                      "(Get-WmiObject MSAcpi_ThermalZoneTemperature -Namespace root/wmi).CurrentTemperature"],
-                    capture_output=True, text=True, timeout=3
+                    capture_output=True, text=True, timeout=3,
+                    creationflags=_WIN_CREATION_FLAGS,
                 )
                 if r.returncode == 0 and r.stdout.strip():
                     raw = float(r.stdout.strip().split("\n")[0])
                     return (raw / 10.0) - 273.15
+                else:
+                    self._wmi_temp_supported = False
             except Exception:
-                pass
+                self._wmi_temp_supported = False
 
         return -1.0
 

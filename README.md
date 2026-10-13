@@ -79,6 +79,17 @@ secrets have been added.
 
 ## Manual setup
 
+### Windows (Command Prompt / PowerShell)
+```cmd
+python -m venv venv
+venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+copy .env.example .env
+run_jarvis.bat
+```
+
+### macOS / Linux
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
